@@ -1,0 +1,309 @@
+:root {
+  --max-chat-width: 768px;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background-color: #000;
+  color: #fff;
+  font-family: "Segoe UI", sans-serif;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: "Segoe UI", "Apple Color Emoji", "Noto Color Emoji", "EmojiOne", sans-serif;
+}
+
+
+.header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 30px;
+  box-sizing: border-box;
+}
+
+.left-header, .right-header {
+  display: flex;
+  gap: 10px;
+}
+
+.icon-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+}
+
+.icon-button:hover {
+  background-color: #222;
+}
+
+.icon-button img {
+  width: 24px;
+  height: 24px;
+  filter: brightness(0) invert(1);
+}
+
+.sign-in {
+  padding: 6px 16px;
+  border: 1px solid white;
+  background: white;
+  color: black;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.sign-up {
+  padding: 6px 16px;
+  background: black;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 80px;
+  position: relative;
+}
+
+h1 {
+  font-size: 28px;
+  line-height: 36px;
+  margin-top: 85px;
+  margin-bottom: 43px;
+  text-align: center;
+}
+
+#chat {
+  display: none;
+  flex-direction: column;
+  width: 100%;
+  max-width: var(--max-chat-width);
+  margin: 0 auto;
+  padding: 20px;
+  padding-bottom: 120px;
+  height: calc(100vh - 300px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  scroll-behavior: smooth;
+}
+
+#chat::-webkit-scrollbar {
+  display: none;
+}
+
+.message {
+  display: flex;
+  width: 100%;
+  max-width: var(--max-chat-width);
+  margin: 28px 0;
+}
+
+.user {
+  justify-content: flex-end;
+}
+
+.ai {
+  justify-content: flex-start;
+}
+
+.bubble {
+  background-color: #222;
+  color: #fff;
+  padding: 5px 14px;
+  border-radius: 10px;
+  width: fit-content;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 15px;
+  line-height: 0; /* ✅ 保持紧凑，但标题单独设置 */
+  box-sizing: border-box;
+  max-width: 73%;
+}
+
+/* ✅ Markdown 标题和段落单独设置字体大小和行距 */
+.bubble h1 {
+  font-size: 1.6em;
+  font-weight: bold;
+  line-height: 1.4;
+  margin: 0.6em 0;
+}
+
+.bubble h2 {
+  font-size: 1.4em;
+  font-weight: bold;
+  line-height: 1.4;
+  margin: 0.5em 0;
+}
+
+.bubble h3 {
+  font-size: 1.2em;
+  font-weight: bold;
+  line-height: 1.4;
+  margin: 0.4em 0;
+}
+
+.bubble p,
+.bubble ul,
+.bubble ol,
+.bubble pre,
+.bubble code,
+.bubble blockquote {
+  font-size: 1em;
+  line-height: 1.4;
+  margin: 0.4em 0;
+}
+
+.bubble pre {
+  background-color: #111;
+  padding: 8px;
+  border-radius: 6px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+.bubble code {
+  background-color: #333;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.ai .bubble {
+  background-color: hwb(0 20% 80% / 0);
+}
+
+.input-container {
+  position: relative;
+  width: 100%;
+  max-width: var(--max-chat-width);
+  height: 102px;
+  margin: 0 auto;
+}
+
+.input-container.bottom-input {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+textarea {
+  width: 100%;
+  height: 100%;
+  padding: 20px 60px 20px 20px;
+  font-size: 16px;
+  border: none;
+  border-radius: 10px;
+  resize: none;
+  background-color: #111;
+  color: #fff;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.send-icon {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.send-icon svg {
+  width: 24px;
+  height: 24px;
+  fill: white;
+}
+
+.send-icon.pause-mode {
+  background-color: #222;
+  border: 1px solid #000000;
+  border-radius: 4px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pause-symbol {
+  font-size: 20px;
+  color: white;
+  font-weight: bold;
+}
+
+@media (max-width: 600px) {
+  .input-container {
+    position: fixed;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    max-width: 95%;
+    height: 60px;
+  }
+
+  #chat {
+    max-width: 95%;
+  }
+
+  .bubble {
+    max-width: 90%;
+  }
+
+  h1 {
+    font-size: 22px;
+  }
+
+  .send-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .sign-up {
+    padding: 6px 16px;
+    background: black;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    display: none;
+  }
+
+  .sign-in {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: inline-block;
+    z-index: 20;
+  }
+
+  .left-header {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    display: flex;
+    gap: 10px;
+    z-index: 20;
+  }
+}

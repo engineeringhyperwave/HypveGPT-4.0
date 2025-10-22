@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HypveGPT</title>
+  <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="left-header">
+      <button class="icon-button" title="Sidebar">
+        <img src="static/sidebar.svg" alt="Sidebar Icon" />
+      </button>
+      <button class="icon-button" title="New Chat" onclick="resetChat()">
+        <img src="static/newchat.svg" alt="New Chat Icon" />
+      </button>
+    </div>
+    <div class="right-header">
+      <button class="sign-in">Sign in</button>
+      <button class="sign-up">Sign up</button>
+    </div>
+  </header>
+
+  <main class="wrapper">
+    <h1 id="title">HypveGPT</h1>
+    <div id="chat"></div>
+    <div class="input-container" id="inputContainer">
+      <textarea id="input" placeholder="Ask HypveGPT..."></textarea>
+      <button class="send-icon" onclick="sendMessage()">
+        <svg viewBox="0 0 24 24">
+          <path d="M2 21l21-9L2 3v7l15 2-15 2v7z" />
+        </svg>
+      </button>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="static/script.js"></script>
+</body>
+</html>
