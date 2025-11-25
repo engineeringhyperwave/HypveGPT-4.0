@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: hypvegpt-deepseek-2-0
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    region: oregon
+    plan: free
+    branch: main
+    runtime: python
+    pythonVersion: 3.10
+    autoDeploy: true
+    envVars:
+      - key: HF_API_KEY
+        sync: false
+      - key: FLASK_SECRET_KEY
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: FLASK_ENV
+        value: production
+        sync: false

@@ -111,7 +111,7 @@ h1 {
   display: flex;
   width: 100%;
   max-width: var(--max-chat-width);
-  margin: 28px 0;
+  margin: 12px 0;
 }
 
 .user {
@@ -125,74 +125,40 @@ h1 {
 .bubble {
   background-color: #222;
   color: #fff;
-  padding: 5px 14px;
-  border-radius: 10px;
+  padding: 7.5px 16px;           /* 原 6px 14px → 更大更舒服 */
+  border-radius: 18px;          /* 原 10px → 更圆润 */
   width: fit-content;
+  max-width: 73%;               /* 原 73% → 更宽（用户气泡） */
   white-space: pre-wrap;
   word-break: break-word;
-  font-size: 15px;
-  line-height: 0; /* ✅ 保持紧凑，但标题单独设置 */
+  font-size: 16px;              /* 原 15px → 更大更清晰 */
+  line-height: 1.5;             /* 原 1.4 → 行距更宽松 */
   box-sizing: border-box;
-  max-width: 73%;
+  display: inline-block;
+  vertical-align: top;
 }
 
 /* ✅ Markdown 标题和段落单独设置字体大小和行距 */
-.bubble h1 {
-  font-size: 1.6em;
-  font-weight: bold;
-  line-height: 1.4;
-  margin: 0.6em 0;
-}
-
-.bubble h2 {
-  font-size: 1.4em;
-  font-weight: bold;
-  line-height: 1.4;
-  margin: 0.5em 0;
-}
-
-.bubble h3 {
-  font-size: 1.2em;
-  font-weight: bold;
-  line-height: 1.4;
-  margin: 0.4em 0;
-}
-
-.bubble p,
-.bubble ul,
-.bubble ol,
-.bubble pre,
-.bubble code,
-.bubble blockquote {
-  font-size: 1em;
-  line-height: 1.4;
-  margin: 0.4em 0;
-}
-
-.bubble pre {
-  background-color: #111;
-  padding: 8px;
-  border-radius: 6px;
-  overflow-x: auto;
-  white-space: pre-wrap;
-}
-
-.bubble code {
-  background-color: #333;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-family: monospace;
-}
-
 .ai .bubble {
-  background-color: hwb(0 20% 80% / 0);
+  background-color: lab(100% 0.01 -0.01 / 0);
+  max-width: 100% !important;
+  margin: 0.8em 0;
+  line-height: 1.6;
+}
+
+.ai .bubble .markdown-body {
+  display: block;             /* Markdown 内部元素是 block 就行 */
+  margin: 0;
+  padding: 0;
 }
 
 .input-container {
   position: relative;
   width: 100%;
   max-width: var(--max-chat-width);
-  height: 102px;
+  min-height: 80px;  /* 关键：默认高度更大 */
+  display: flex;           /* 新增 */
+  align-items: center;
   margin: 0 auto;
 }
 
@@ -210,12 +176,29 @@ textarea {
   padding: 20px 60px 20px 20px;
   font-size: 16px;
   border: none;
-  border-radius: 10px;
+  border-radius: 32px;
   resize: none;
   background-color: #111;
   color: #fff;
   box-sizing: border-box;
   outline: none;
+  overflow-x: hidden !important;
+  word-break: break-all;
+}
+
+textarea::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+textarea::-webkit-scrollbar-track {
+  background: #111;              /* 深色轨道 */
+}
+textarea::-webkit-scrollbar-thumb {
+  background: #333;              /* 深灰滑块 */
+  border-radius: 3px;
+}
+textarea::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }
 
 .send-icon {
@@ -237,8 +220,8 @@ textarea {
 
 .send-icon.pause-mode {
   background-color: #222;
-  border: 1px solid #000000;
-  border-radius: 4px;
+  border: 1px solid #000000; /* 可保留边框或改色 */
+  border-radius: 50%;        /* 圆形 */
   width: 40px;
   height: 40px;
   display: flex;
@@ -246,12 +229,511 @@ textarea {
   justify-content: center;
 }
 
+
 .pause-symbol {
   font-size: 20px;
   color: white;
   font-weight: bold;
 }
 
+.modal {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: #000000;
+  display: flex; justify-content: center; align-items: center;
+  z-index: 999;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-content {
+  background: #1f1f1f;
+  padding: 40px 30px;
+  border-radius: 12px;
+  width: 320px; /* 可以改成 300px 更窄 */
+  min-height: 380px; /* 👈 增加高度 */
+  position: relative;
+  text-align: center;
+  box-shadow: 0 0 20px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 20px 30px 40px 30px;
+}
+
+.close-button {
+  position: absolute;
+  top: 10px; right: 15px;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.login-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 5px;
+}
+
+.login-provider {
+  padding: 10px;
+  border: none;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.google {
+  background-color: #2F2F2F;
+  color: white;
+  border-radius: 100px;
+}
+
+.github {
+  background-color: #2F2F2F;
+  color: white;
+  border-radius: 100px;
+}
+
+.divider {
+  margin: 15px 0;
+  font-size: 14px;
+  color: #888;
+}
+
+#loginEmail {
+  width: 100%;
+  padding: 10px 12px;
+  margin-top: 10px;
+  border: 1px solid #ccc;
+  border-radius: 30px;
+  font-size: 14px;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.3s ease;
+  background-color: #2F2F2F;
+  color: white;
+}
+
+#loginEmail:focus {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+  caret-color: white;
+}
+
+
+.continue-button {
+  margin-top: 15px;
+  padding: 10px;
+  width: 100%;
+  background-color: white;
+  color: #2F2F2F;
+  border: none;
+  border-radius: 100px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.input-error {
+  border-color: red !important;
+  box-shadow: 0 0 0 2px rgba(255, 0, 0, 0.2) !important;
+}
+
+.settings-button {
+  margin-left: auto;
+}
+
+.settings-icon {
+  width: 24px;
+  height: 24px;
+  filter: brightness(0) invert(1); /* ✅ 白色图标适配深色背景 */
+  padding: 6px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+#chatList {
+  max-height: calc(100% - 100px);
+  overflow-y: auto;
+  scrollbar-width: thick; /* Firefox */
+  scrollbar-color: #333 #111; /* Firefox */
+}
+
+#chatList::-webkit-scrollbar {
+  width: 6px;
+}
+
+#chatList::-webkit-scrollbar-track {
+  background: #111;
+}
+
+#chatList::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+
+#chatList::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 240px;
+  height: 100%;
+  background-color: #111;
+  color: white;
+  padding: 16px;
+  box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+  z-index: 1000;
+}
+
+.sidebar.visible {
+  transform: translateX(0);
+}
+
+.sidebar-header {
+  display: flex;
+  justify-content: flex-start; /* 图标靠左排列 */
+  align-items: center;
+  gap: 8px; /* 控制图标之间的距离 */
+  margin-bottom: 12px;
+}
+
+.sidebar-header .icon-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-header .icon-button:hover {
+  background-color: #222;
+}
+
+.sidebar-header img {
+  width: 22px;
+  height: 22px;
+  filter: brightness(0) invert(1);
+}
+
+.sidebar-title {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.chat-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.chat-list li {
+  padding: 10px;
+  border-bottom: 1px solid #333;
+  cursor: pointer;
+}
+
+.chat-list li:hover {
+  background-color: #222;
+}
+
+/* 高亮当前选中的聊天 bar */
+.chat-list li.selected {
+  background-color: #2b2b2b !important;
+}
+
+/* pre copy button */
+.pre-with-copy {
+  position: relative;
+}
+
+.copy-code-btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  padding: 10px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  border: none;
+  border-radius: 4px;
+  background-color: #000;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 4px; /* SVG 和文字之间的间距 */
+}
+
+/* hover 效果 */
+.copy-code-btn:hover {
+  background-color: rgba(0, 0, 0, 0.9);
+  transform: scale(1.1); /* 轻微放大 */
+}
+
+.copy-code-btn .copy-icon {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor; /* 继承白色 */
+}
+
+.ai-message {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.bubble-no-scroll {
+  overflow: hidden;
+}
+
+
+/* 按钮容器 */
+.message-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  justify-content: flex-start; /* 改为左对齐 */
+  width: 100%; /* 占满宽度 */
+}
+
+/* 通用按钮样式 */
+.message-btn {
+  background-color: #e6f0ff00; /* 浅蓝色背景，可自定义 */
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.message-btn:hover {
+  background-color: hwb(0 47% 53% / 0.375); /* 稍深的蓝色悬停，可自定义 */
+}
+
+/* SVG 图标样式 */
+.message-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke: #727272; /* 深蓝色图标，可自定义 */
+}
+
+/* === GitHub Markdown 渲染核心样式 === */
+.markdown-body {
+  font-size: 16px;
+  line-height: 1.6;
+  color: #e5e7eb;
+}
+
+/* === 优化 AI 气泡内 h1 标题（更大、更突出）=== */
+.markdown-body h1 {
+  font-size: 1.9em !important;     /* 比 h3 大 58%，视觉主标题 */
+  font-weight: 700 !important;     /* 更粗 */
+  line-height: 1.6 !important;     /* 正常行高，避免压扁 */
+  margin: 0.6em 0 0.4em !important;
+  color: #f0f0f0 !important;       /* 更亮的白，深色背景高对比 */
+  padding-bottom: 0.5em !important;
+  border-bottom: 1px solid #555 !important; /* 下划线增强层次 */
+}
+
+.markdown-body h2 {
+  font-size: 1.5em !important;
+  font-weight: 600 !important;
+  line-height: 1.6 !important;
+  margin: 0.5em 0 0.8em !important;
+  color: #e5e7eb !important;
+  padding-bottom: 0.5em !important;
+  border-bottom: 1px solid #444 !important;
+}
+
+/* === Grok 官方横线（2025 最新）=== */
+.markdown-body hr {
+  border: none;
+  height: 2px;
+  background: #e5e7eb50 !important;   /* 半透明白色（50% 透明） */
+  margin: 0.1em auto;
+  width: 100%;
+  opacity: 0.7 !important;
+  z-index: 10;
+}
+
+.markdown-body h3 {
+  font-size: 1.3em !important;
+  font-weight: 600 !important;
+  line-height: 1.6 !important;
+  margin: 0.5em 0 0.3em !important;
+  color: #e0e0e0 !important;
+}
+
+.markdown-body p {
+  margin: 0em 0;
+  line-height: 1.6;
+}
+
+.markdown-body strong {
+    font-weight: 600; /* 保持加粗 */
+    margin-bottom: 0; /* 不增加额外间距 */
+}
+
+
+.markdown-body ul, .markdown-body ol {
+  margin: 0em 0;
+  padding-left: 1.2em;
+}
+
+.markdown-body li {
+  margin: 0em 0;
+}
+
+.markdown-body code {
+  background: #333;
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-size: 0.9em;
+  font-family: 'Courier New', monospace;
+}
+
+.markdown-body pre {
+  background: #000000;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #444;
+  margin: 1em 0;
+  white-space: pre-wrap;   /* 保留换行但允许自动换行 */
+  word-break: break-word;  /* 长单词也能断开 */
+  overflow-x: hidden;      /* 禁止横向滚动 */
+}
+
+
+.markdown-body pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.95em;
+}
+
+.markdown-body blockquote {
+  border-left: 4px solid #10b981;
+  margin: 1em 0;
+  padding-left: 1em;
+  color: #aaa;
+  font-style: italic;
+}
+
+/* ====== 强制恢复 Markdown 表格边框 ====== */
+.markdown-body table {
+  border-collapse: collapse !important;
+  width: 100% !important;
+  margin: 16px 0 !important;
+}
+
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid #555 !important;
+  padding: 8px 12px !important;
+  text-align: left !important;
+}
+
+.markdown-body th {
+  background-color: #2a2a2a !important;
+  color: #fff !important;
+}
+
+.markdown-body a {
+  color: inherit;           /* 继承文字颜色 #e5e7eb */
+  text-decoration: underline; /* 可以加下划线提示可点击 */
+  transition: color 0.2s;
+}
+
+.markdown-body a:hover {
+  color: #ffffff;           /* 悬停稍微亮一点，提示可点击 */
+}
+
+/* Modal 样式，保持和 deleteConfirmModal 一致 */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5); /* 背景半透明 */
+  justify-content: center; /* 垂直居中 */
+  align-items: center; /* 水平居中 */
+  display: flex; /* 必须使用 flexbox */
+  z-index: 9999; /* 确保位于最上层 */
+}
+
+.modal-content {
+  background: #1f1f1f; /* 背景深灰 */
+  color: white;
+  padding: 24px; /* 内边距 */
+  border-radius: 26px; /* 圆角 */
+  width: 90%; /* 最大宽度 */
+  max-width: 400px; /* 最大宽度限制 */
+  text-align: center; /* 文本居中 */
+  position: relative; /* 用于关闭按钮定位 */
+}
+
+/* 关闭按钮样式 */
+.close-button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  cursor: pointer;
+  font-size: 20px; /* 设置字体大小 */
+}
+
+/* 删除警告信息样式 */
+.delete-warning {
+  margin: 16px 0;
+  font-size: 14px;
+  color: #ccc; /* 灰色文字 */
+}
+
+/* 按钮垂直排列 */
+.delete-buttons-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 删除按钮样式 */
+.delete-btn {
+  background-color: #ef4444;
+  color: white;/* 红色字体 */
+  border: none;
+  padding: 8px;
+  border-radius: 16px; /* 圆角 */
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px; /* 增加字体大小 */
+}
+
+/* 取消按钮样式 */
+.cancel-btn {
+  background-color: #2F2F2F;
+  color: white;
+  border: none;
+  padding: 8px;
+  border-radius: 16px;
+  cursor: pointer;
+  font-size: 14px; /* 增加字体大小 */
+}
+
+/* ✅ 小屏样式：仅在宽度 ≤600px 时生效 */
 @media (max-width: 600px) {
   .input-container {
     position: fixed;
@@ -292,7 +774,7 @@ textarea {
 
   .sign-in {
     position: absolute;
-    top: 10px;
+    top: 15px;
     right: 10px;
     display: inline-block;
     z-index: 20;
@@ -305,5 +787,28 @@ textarea {
     display: flex;
     gap: 10px;
     z-index: 20;
+  }
+
+  .modal-content {
+    width: 280px;
+    padding: 20px 20px;
+    min-height: 340px;
+  }
+
+  .close-button {
+    top: 8px;
+    right: 10px;
+    font-size: 18px;
+  }
+
+  .login-provider,
+  .continue-button {
+    padding: 8px;
+    font-size: 14px;
+  }
+
+  #loginEmail {
+    font-size: 13px;
+    padding: 8px 10px;
   }
 }
