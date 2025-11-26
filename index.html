@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hyperwave</title>
+  <link rel="icon" type="image/x-icon" href="h.ico">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="header">
+  <div class="nav-container">
+    <a href="index.html"><img src="logo1.png" alt="公司标志" class="logo" style="cursor: pointer;"></a>
+    <button class="hamburger-btn">≡</button>
+    
+    <!-- 桌面导航（仅桌面显示） -->
+    <nav class="main-nav">
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="about-us.html">About Us</a></li>
+        <li><a href="products.html">Products</a></li>
+        <li><a href="portfolio.html">Portfolio</a></li>
+        <li><a href="services.html">Services</a></li>
+        <li><a href="careers.html">Careers</a></li>
+        <li><a href="gpt.html">GPT</a></li>
+      </ul>
+    </nav>
+
+    <div class="nav-right">
+      <button class="search-btn" onclick="window.open('https://engineeringhyperwave.github.io/HypveGPT/', '_blank')">🔍︎</button>
+      <button class="nav-btn email-btn" onclick="window.open('https://mail.google.com/mail/?view=cm&fs=1&to=info@hyper-wave.com', '_blank')">Email</button>
+      <button class="nav-btn contact-btn" onclick="window.open('https://hyper-wave.carrd.co/', '_blank')">Contact Us</button>
+    </div>
+  </div>
+</header>
+
+<!-- 移动菜单（仅移动端显示） -->
+<ul id="mobileMenu" class="mobile-menu">
+  <li><a href="index.html">Home</a></li>
+  <li><a href="about-us.html">About Us</a></li>
+  <li><a href="products.html">Products</a></li>
+  <li><a href="portfolio.html">Portfolio</a></li>
+  <li><a href="services.html">Services</a></li>
+  <li><a href="careers.html">Careers</a></li>
+  <li><a href="gpt.html">GPT</a></li>
+  <li><button class="nav-btn email-btn" onclick="window.open('https://mail.google.com/mail/?view=cm&fs=1&to=info@hyper-wave.com', '_blank')">Email</button></li>
+  <li><button class="nav-btn contact-btn" onclick="window.open('https://hyper-wave.carrd.co/', '_blank')">Contact Us</button></li>
+</ul>
+
+  <div class="video-container">
+    <video id="mainVideo" autoplay muted loop playsinline aria-hidden="true">
+      <source src="2.mp4" type="video/mp4">
+    </video>
+    <button class="video-switch-btn" onclick="switchVideo()">→</button>
+  </div>
+
+  <h2 class="section-title">Our Products</h2>
+
+  <div class="brand-scroller-section">
+  <button class="scroll-btn left" onclick="scrollBrands(-1)">←</button>
+  <div class="brand-scroller" id="brandScroller">
+    <div class="brand-card">
+      <a href="https://www.ametekpi.com" target="_blank">
+        <img src="Principal logos/AMETEK.png" alt="Ametek Logo">
+        <span>Ametek</span>
+      </a>
+    </div>
+    <div class="brand-card">
+      <a href="https://www.emerson.com/en-us/automation/asco" target="_blank">
+        <img src="Principal logos/ASCO.png" alt="Emerson ASCO Logo">
+        <span>Emerson ASCO</span>
+      </a>
+    </div>
+    <div class="brand-card">
+      <a href="https://geniefilters.com" target="_blank">
+        <img src="Principal logos/A+ GENIE.png" alt="A+ Genie Filters Logo">
+        <span>A+ Genie Filters</span>
+      </a>
+    </div>
+    <div class="brand-card">
+      <a href="https://www.indsci.com/en" target="_blank">
+        <img src="Principal logos/ISC.png" alt="Industrial Scientific Logo">
+        <span>Industrial Scientific</span>
+      </a>
+    </div>
+    <div class="brand-card">
+      <a href="https://www.lumexinstruments.com" target="_blank">
+        <img src="Principal logos/LUMEX.png" alt="Lumex Logo">
+        <span>Lumex</span>
+      </a>
+    </div>
+    <div class="brand-card">
+      <a href="https://www.iconscientific.com/analysers" target="_blank">
+        <img src="Principal logos/ICON.png" alt="Icon Logo">
+        <span>Icon</span>
+      </a>
+    </div>
+    <div class="brand-card">
+      <a href="https://neomonitors.com" target="_blank">
+        <img src="Principal logos/NEO MONITORS.png" alt="Neo Monitor Logo">
+        <span>Neo Monitor</span>
+      </a>
+    </div>
+    <div class="brand-card">
+      <a href="https://www.obcorp.com" target="_blank">
+        <img src="Principal logos/OBRIEN.png" alt="Obrien Logo">
+        <span>Obrien</span>
+      </a>
+    </div>
+    <div class="brand-card">
+      <a href="https://www.barbenanalytical.com" target="_blank">
+        <img src="Principal logos/BARBEN.png" alt="Barben Logo">
+        <span>Barben</span>
+      </a>
+    </div>
+    <div class="brand-card">
+      <a href="https://envea.global" target="_blank">
+        <img src="Principal logos/ENVEA.png" alt="Envea Logo">
+        <span>Envea</span>
+      </a>
+    </div>
+    <div class="brand-card">
+      <a href="https://www.airdimensions.com" target="_blank">
+        <img src="Principal logos/ADI PUMP.png" alt="ADI Pumps Logo">
+        <span>ADI Pumps</span>
+      </a>
+    </div>
+    <div class="brand-card">
+      <a href="https://www.universalanalyzers.com" target="_blank">
+        <img src="Principal logos/UNIVERSAL ANALYZER.png" alt="Universal Analyzer Logo">
+        <span>Universal Analyzer</span>
+      </a>
+    </div>
+    <div class="brand-card">
+      <a href="https://www.autocontrol.it" target="_blank">
+        <img src="Principal logos/AUTOCONTROL.png" alt="Autocontrol Logo">
+        <span>Autocontrol</span>
+      </a>
+    </div>
+    <div class="brand-card">
+      <a href="https://www.airliquide.com" target="_blank">
+        <img src="Principal logos/AIR LIQUIDE.png" alt="Air Liquide Logo">
+        <span>Air Liquide</span>
+      </a>
+    </div>
+    <div class="brand-card">
+      <a href="https://www.hamiltoncompany.com" target="_blank">
+        <img src="Principal logos/HAMILTON.png" alt="Hamilton Logo">
+        <span>Hamilton</span>
+      </a>
+    </div>
+    <div class="brand-card">
+      <a href="https://refexsensors.com" target="_blank">
+        <img src="Principal logos/REFEX.png" alt="Refex RSL Logo">
+        <span>Refex RSL</span>
+      </a>
+    </div>
+    <div class="brand-card">
+      <a href="https://www.liebherr.com/en-int/components/solutions/sensors/measuring-technology-5373914" target="_blank">
+        <img src="Principal logos/LIEBHERR.png" alt="Liebherr Logo">
+        <span>Liebherr</span>
+      </a>
+    </div>
+    <div class="brand-card">
+      <a href="https://www.process-insights.com/products-3/products-industrial" target="_blank">
+        <img src="Principal logos/PROCESS INSIGHT.png" alt="Process Insight Logo">
+        <span>Process Insight</span>
+      </a>
+    </div>
+  </div>
+  <button class="scroll-btn right" onclick="scrollBrands(1)">→</button>
+</div>
+
+
+
+  <div class="slogan-container">
+    <h1 class="slogan-text">Together, Powering a Brighter Future.</h1>
+    <p class="slogan-subtext">As a leading provider of professional engineering services, we specialize in delivering advanced solutions for the oil, gas, and petrochemical industries.</p>
+    <p class="slogan-subtext">Engineering excellence for a more sustainable world.</p>
+  </div>
+
+  <div class="feature-grid">
+    <div class="feature-box environment">
+      <div class="overlay">
+        <h3>ABOUT US</h3>
+        <p>We are one of the leading company in professional engineering services and metering and industrial process analysis systems products.</p>
+      </div>
+    </div>
+    <div class="feature-box what-we-do">
+      <div class="overlay">
+        <h3>WHAT WE DO</h3>
+        <p>We specialize in professional engineering services and integrated solutions for the oil, gas, and petrochemical industries.</p>
+      </div>
+    </div>
+    <div class="feature-box careers">
+      <div class="overlay">
+        <h3>CAREERS</h3>
+        <p>Be part of a close-knit, supportive team that values safety, integrity, and shared success.</p>
+      </div>
+    </div>
+    <div class="feature-box investors">
+      <div class="overlay">
+        <h3>PORTFOLIO</h3>
+        <p>Project & Supply Reference for Analyzers, Instruments & Sampling Conditioning Systems</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="slogan-extension">
+    <h2 class="slogan-highlight">Explore Our Expertise</h2>
+    <p class="slogan-subtext">From concept to commissioning, we deliver excellence every step of the way.</p>
+  </div>
+
+  <div class="image-grid">
+    <div class="image-card" style="background-image: url('img1.jpg');">
+      <div class="overlay-text">
+        <h3>Maintenance Service</h3>
+        <p>Comprehensive maintenance for lasting performance.</p>
+      </div>
+    </div>
+    <div class="image-card" style="background-image: url('img2.jpg');">
+      <div class="overlay-text">
+        <h3>Calibration Services</h3>
+        <p>Certified calibration services for every device we deliver—lab or field.</p>
+      </div>
+    </div>
+    <div class="image-card" style="background-image: url('img3.jpg');">
+      <div class="overlay-text">
+        <h3>Metering Services</h3>
+        <p>Any inaccuracies can lead to significant financial losses.</p>
+      </div>
+    </div>
+    <div class="image-card" style="background-image: url('img4.jpg');">
+      <div class="overlay-text">
+        <h3>After Sales Services</h3>
+        <p>Provide start-up and operational assistance as needed.</p>
+      </div>
+    </div>
+    <div class="image-card" style="background-image: url('img5.jpg');">
+      <div class="overlay-text">
+        <h3>Training Programs</h3>
+        <p>Offers training designed to meet specific operational requirements.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="video-highlight-section">
+    <div class="video-text">
+      <h2>Professional Engineering Solutions</h2>
+      <p>Focuses on the packaging requirements of industry's instrumentation & information of process analyzers needs and its application to our customers.</p>
+      <a href="#" class="cta-link">Learn More</a>
+    </div>
+    <div class="video-box">
+      <video autoplay muted loop playsinline>
+        <source src="1.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+      </video>
+    </div>
+  </div>
+
+  <div class="slogan-extension">
+    <h2 class="slogan-highlight">Brand We Represent</h2>
+    <p class="slogan-subtext">HYPERWAVE expanded its capabilities and became one of the country's leading LOCAL multi-discipline Engineering, Procurement, Construction and Commissioning (EPCC) contractor delivering Mechanical & Piping, Instrumentation & Control, Civil & Structural and Electrical works.</p>
+  </div>
+
+ <div class="partner-logos-section">
+  <a href="products.html">
+    <div class="logo-image">
+      <img src="bottom3.png" alt="Partner Logos">
+    </div>
+  </a>
+</div>
+
+
+  <footer class="site-footer">
+    <div class="footer-links">
+      <a href="privacy.html">Privacy Policy</a>
+      <a href="terms.html">Terms of Use</a>
+      <a href="https://hyper-wave.carrd.co/">Contact Us</a>
+      <a href="careers.html">Careers</a>
+      <a href="https://www.linkedin.com/company/hyperwave-systems-engineering-sdn-bhd">LinkedIn</a>
+    </div>
+    <p class="footer-note">© 2025 Hyperwave System Engineering. All rights reserved.</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
