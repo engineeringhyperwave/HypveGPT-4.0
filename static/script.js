@@ -1,10 +1,57 @@
 let chatVisible = false;
 let cancelReply = false;
 let currentChatTitle = null;
-let chatTitleToDelete = null;
+let liToDelete = null;          // 替换掉了原来的 chatTitleToDelete
 let guestChatTitles = [];
 let guestChatRecords = {};
 const API_URL = "/generate";
+
+
+// ←←←←←←←←←←←←←← 把这个函数移到最顶部，全局变量下面 ←←←←←←←←←←←←←←
+function loadChatTitles(userId) {
+  const key = `chatTitles_${userId}`;
+  const titles = JSON.parse(localStorage.getItem(key) || "[]");
+  const chatList = document.getElementById("chatList");
+  if (!chatList) return;
+  chatList.innerHTML = "";
+
+  titles.forEach(fullTitle => {                    // fullTitle 就是完整标题，如 "今天吃啥 #K9P4M"
+    const displayTitle = fullTitle.split(" #")[0]; // 显示用的短标题
+
+    const li = document.createElement("li");
+    li.className = "chat-title";
+    li.style.display = "flex";
+    li.dataset.fullTitle = fullTitle;              // 关键：真实标题存在 DOM 上，永不出错！
+
+    const span = document.createElement("span");
+    span.textContent = displayTitle;
+    li.appendChild(span);
+
+    const delBtn = document.createElement("button");
+    delBtn.textContent = "X";
+    delBtn.style.cssText = "margin-left:auto;background:transparent;border:none;color:white;cursor:pointer;font-weight:bold;font-size:10px;padding:2px 8px;border-radius:4px;";
+    
+    // 删除按钮：直接从 DOM 拿真实标题
+    delBtn.onclick = (e) => {
+      e.stopPropagation();
+      openDeleteConfirm(li);  // 直接传整个 li，里面有 dataset.fullTitle
+    };
+
+    li.appendChild(delBtn);
+
+    // 点击标题加载聊天：直接用 fullTitle
+    li.onclick = (e) => {
+      if (e.target.tagName === 'BUTTON') return;
+      
+      chatList.querySelectorAll('li').forEach(l => l.classList.remove('selected'));
+      li.classList.add('selected');
+      
+      loadChatByTitle(userId, fullTitle);  // 直接传完整标题
+    };
+
+    chatList.appendChild(li);
+  });
+}
 
 // 保留所有 Emoji，只删真乱码（孤立代理对）
 function sanitizeText(text) {
@@ -111,42 +158,6 @@ function createMessage(role, text) {
   return msg;
 }
 
-// 添加按钮到 AI 消息（保留 Copy 功能）
-function addButtonsToMessage(msg, text) {
-  const buttonContainer = document.createElement("div");
-  buttonContainer.className = "message-buttons";
-
-  // Copy 按钮
-  const copyBtn = document.createElement("button");
-  copyBtn.className = "message-btn copy-btn";
-  copyBtn.innerHTML = `
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-    </svg>
-  `;
-  copyBtn.title = "Copy";
-
-  const originalCopySVG = copyBtn.innerHTML;
-
-  copyBtn.onclick = () => {
-    navigator.clipboard.writeText(text).then(() => {
-      copyBtn.innerHTML = `
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#10b981" stroke-width="3">
-          <path d="M5 13l4 4L19 7"/>
-        </svg>
-      `;
-      copyBtn.title = "Copied!";
-      setTimeout(() => {
-        copyBtn.innerHTML = originalCopySVG;
-        copyBtn.title = "Copy";
-      }, 2000);
-    }).catch(err => console.error("Copy failed:", err));
-  };
-  buttonContainer.appendChild(copyBtn);
-
-  msg.appendChild(buttonContainer);
-}
-
 // 添加按钮到 AI 消息
 function addButtonsToMessage(msg, text) {
   const buttonContainer = document.createElement("div");
@@ -240,107 +251,7 @@ function deleteChat(userId, title) {
   }
 }
 
-// 更新侧边栏
-function loadChatTitles(userId) {
-  const key = `chatTitles_${userId}`;
-  const titles = JSON.parse(localStorage.getItem(key) || "[]");
-  const chatList = document.getElementById("chatList");
-  if (!chatList) return;
 
-  // 清空当前聊天列表
-  chatList.innerHTML = "";
-
-  // 渲染所有聊天标题
-  titles.forEach(title => {
-    const li = document.createElement("li");
-    li.className = "chat-title";
-    li.style.display = "flex";
-
-    const span = document.createElement("span");
-    span.textContent = title.split(" #")[0];
-    li.appendChild(span);
-
-    const delBtn = document.createElement("button");
-    delBtn.style.backgroundColor = "transparent";
-    delBtn.style.color = "white";
-    delBtn.style.border = "none";
-    delBtn.style.padding = "2px 8px";
-    delBtn.style.cursor = "pointer";
-    delBtn.style.fontWeight = "bold";
-    delBtn.style.borderRadius = "4px";
-    delBtn.style.fontSize = "10px";
-    delBtn.textContent = "X";
-    delBtn.style.marginLeft = "auto";
-    
-    // 删除按钮逻辑
-    delBtn.onclick = (e) => {
-      e.stopPropagation();
-      openDeleteConfirm(getRealTitle(e.target.closest("li").querySelector("span").textContent));
-    };
-    li.appendChild(delBtn);
-
-    // 点击标题加载聊天记录
-    li.onclick = (e) => {
-      if (e.target.tagName === 'BUTTON') return;
-      chatList.querySelectorAll('li').forEach(l => l.classList.remove('selected'));
-      li.classList.add('selected');
-      loadChatByTitle(userId, getRealTitle(title));
-    };
-
-    chatList.appendChild(li);
-  });
-
-  // 选中当前聊天标题
-  setTimeout(() => {
-    if (!currentChatTitle || !chatList) return;
-    const activeLi = [...chatList.querySelectorAll('li')].find(li => 
-      li.querySelector('span').textContent === (currentChatTitle ? currentChatTitle.split(" #")[0] : "")
-    );
-    if (activeLi) {
-      chatList.querySelectorAll('li').forEach(l => l.classList.remove('selected'));
-      activeLi.classList.add('selected');
-    }
-  }, 0);
-}
-
-// 删除确认对话框
-function openDeleteConfirm(title) {
-  chatTitleToDelete = title;
-  document.getElementById("deleteConfirmModal").classList.remove("hidden");
-  document.getElementById("deleteConfirmModal").style.display = "flex";
-}
-
-function closeDeleteModal() {
-  document.getElementById("deleteConfirmModal").classList.add("hidden");
-  document.getElementById("deleteConfirmModal").style.display = "none";
-  chatTitleToDelete = null;
-}
-
-function confirmDelete() {
-  if (!chatTitleToDelete) return;
-
-  const userId = localStorage.getItem("currentUserId");
-  
-  if (userId) {
-    deleteChat(userId, chatTitleToDelete);
-  } else {
-    guestChatTitles = guestChatTitles.filter(t => t !== chatTitleToDelete);
-    delete guestChatRecords[chatTitleToDelete];
-    localStorage.setItem("guestChatTitles", JSON.stringify(guestChatTitles));
-    localStorage.setItem("guestChatRecords", JSON.stringify(guestChatRecords));
-    updateGuestSidebar();
-  }
-
-  // 如果删除的是当前正在查看的聊天，重置聊天界面
-  if (currentChatTitle === chatTitleToDelete) {
-    resetChat(); // 清空当前聊天界面
-  }
-
-  closeDeleteModal();
-}
-
-
-// 更新游客侧边栏
 function updateGuestSidebar() {
   const chatList = document.getElementById("chatList");
   if (!chatList) return;
@@ -350,132 +261,85 @@ function updateGuestSidebar() {
 
   chatList.innerHTML = "";
 
-  guestChatTitles.forEach(title => {
-    const display = title.split(" #")[0];
+  guestChatTitles.forEach(fullTitle => {
+    const displayTitle = fullTitle.split(" #")[0];
+
     const li = document.createElement("li");
     li.className = "chat-title";
     li.style.display = "flex";
+    li.dataset.fullTitle = fullTitle;  // 关键！
 
     const span = document.createElement("span");
-    span.textContent = display;
+    span.textContent = displayTitle;
     li.appendChild(span);
 
     const delBtn = document.createElement("button");
     delBtn.textContent = "X";
     delBtn.style.cssText = "margin-left:auto;background:transparent;border:none;color:white;cursor:pointer;font-weight:bold;font-size:10px;padding:2px 8px;border-radius:4px;";
-    delBtn.onclick = e => { e.stopPropagation(); openDeleteConfirm(display); };
-    li.appendChild(delBtn);
-
-    chatList.appendChild(li);
-  });
-
-  // 上面我给你的终极修复版事件委托
-  chatList.onclick = (e) => {
-    const li = e.target.closest("li.chat-title");
-    if (!li) return;
-
-    const displayTitle = li.querySelector("span").textContent;
-    const realTitle = getRealTitle(displayTitle);
-
-    chatList.querySelectorAll('li').forEach(l => l.classList.remove('selected'));
-    li.classList.add('selected');
-
-    const chat = document.getElementById("chat");
-    chat.innerHTML = "";
-    chat.style.display = "flex";
-    document.getElementById("title").style.display = "none";
-    document.getElementById("inputContainer").classList.add("bottom-input");
-    chatVisible = true;
-    currentChatTitle = realTitle;
-
-    const history = guestChatRecords[realTitle] || [];
-    history.forEach(msg => {
-      const el = createMessage(msg.role, msg.text);
-      chat.appendChild(el);
-      if (msg.role === "ai") addButtonsToMessage(el, msg.text);
-    });
-
-    chat.scrollTop = chat.scrollHeight;
-  };
-
-  // 刷新后自动高亮当前会话
-  setTimeout(() => {
-    if (!currentChatTitle || !chatList) return;
-    const activeLi = [...chatList.querySelectorAll('li')].find(li => 
-      li.querySelector('span').textContent === currentChatTitle.split(" #")[0]
-    );
-    if (activeLi) activeLi.classList.add('selected');
-  }, 0);
-}
-
-
-// 加载用户聊天标题
-function loadChatTitles(userId) {
-  const key = `chatTitles_${userId}`;
-  const titles = JSON.parse(localStorage.getItem(key) || "[]");
-  const chatList = document.getElementById("chatList");
-  if (!chatList) return;
-  chatList.innerHTML = "";
-
-  titles.forEach(title => {
-    const li = document.createElement("li");
-    li.className = "chat-title";
-    li.style.display = "flex";
-
-    const span = document.createElement("span");
-    span.textContent = title.split(" #")[0];
-    li.appendChild(span);
-
-    const delBtn = document.createElement("button");
-    delBtn.style.backgroundColor = "transparent";
-    delBtn.style.color = "white";
-    delBtn.style.border = "none";
-    delBtn.style.padding = "2px 8px";
-    delBtn.style.cursor = "pointer";
-    delBtn.style.fontWeight = "bold";
-    delBtn.style.borderRadius = "4px";
-    delBtn.style.fontSize = "10px";
-    delBtn.textContent = "X";
-    delBtn.style.marginLeft = "auto";
-    delBtn.onclick = (e) => {
+    delBtn.onclick = e => {
       e.stopPropagation();
-      openDeleteConfirm(getRealTitle(e.target.closest("li").querySelector("span").textContent));
+      openDeleteConfirm(li);
     };
     li.appendChild(delBtn);
 
-    li.onclick = (e) => {
-      if (e.target.tagName === 'BUTTON') return;
-      chatList.querySelectorAll('li').forEach(l => l.classList.remove('selected'));
-      li.classList.add('selected');
-      loadChatByTitle(userId, getRealTitle(title));
+    li.onclick = e => {
+      if (e.target.tagName === "BUTTON") return;
+
+      const chat = document.getElementById("chat");
+      chat.classList.add("switching");
+      setTimeout(() => chat.classList.remove("switching"), 200);
+
+      chatList.querySelectorAll("li").forEach(l => l.classList.remove("selected"));
+      li.classList.add("selected");
+
+      chat.innerHTML = "";
+      chat.style.display = "flex";
+      document.getElementById("title").style.display = "none";
+      document.getElementById("inputContainer").classList.add("bottom-input");
+      chatVisible = true;
+      currentChatTitle = fullTitle;
+
+      const history = guestChatRecords[fullTitle] || [];
+      history.forEach(msg => {
+        const el = createMessage(msg.role, msg.text);
+        chat.appendChild(el);
+        if (msg.role === "ai") addButtonsToMessage(el, msg.text);
+      });
+
+      chat.scrollTop = chat.scrollHeight;
     };
 
     chatList.appendChild(li);
   });
 
+  // 高亮当前
   setTimeout(() => {
-    if (!currentChatTitle || !chatList) return;
-    const activeLi = [...chatList.querySelectorAll('li')].find(li => 
-      li.querySelector('span').textContent === (currentChatTitle ? currentChatTitle.split(" #")[0] : "")
-    );
-    if (activeLi) {
-      chatList.querySelectorAll('li').forEach(l => l.classList.remove('selected'));
-      activeLi.classList.add('selected');
+    if (currentChatTitle && chatList) {
+      const activeLi = [...chatList.querySelectorAll("li")].find(
+        li => li.dataset.fullTitle === currentChatTitle
+      );
+      if (activeLi) activeLi.classList.add("selected");
     }
   }, 0);
 }
 
 // 加载指定聊天
 function loadChatByTitle(userId, title) {
+  // title 现在传进来的一定是真实标题（比如 "hi #A1B2C"），不要再转换了！
+  if (!title) return;
+
+  const chat = document.getElementById("chat");
+  chat.classList.add("switching");
+
   const key = `chat_${userId}_${title}`;
   const history = JSON.parse(localStorage.getItem(key) || "[]");
-  const chat = document.getElementById("chat");
+
   chat.innerHTML = "";
   chat.style.display = "flex";
   document.getElementById("title").style.display = "none";
   document.getElementById("inputContainer").classList.add("bottom-input");
   chatVisible = true;
-  currentChatTitle = getRealTitle(title);
+  currentChatTitle = title;                    // ← 直接赋值！不要 getRealTitle！
 
   history.forEach(msg => {
     const el = createMessage(msg.role, msg.text);
@@ -486,22 +350,15 @@ function loadChatByTitle(userId, title) {
   });
 
   chat.scrollTop = chat.scrollHeight;
+  requestAnimationFrame(() => chat.classList.remove("switching"));
 
-  setTimeout(() => {
-    const chatList = document.getElementById("chatList");
-    if (!chatList) return;
-    const activeLi = [...chatList.querySelectorAll('li')].find(li => 
-      li.querySelector('span').textContent === (currentChatTitle ? currentChatTitle.split(" #")[0] : "")
-    );
-    if (activeLi) {
-      chatList.querySelectorAll('li').forEach(l => l.classList.remove('selected'));
-      activeLi.classList.add('selected');
-    }
-  }, 0);
+  // 保存这次打开的是哪个聊天（用于下次刷新页面自动恢复）
+  localStorage.setItem(`lastOpenedChat_${userId}`, title);
 }
 
 // 发送消息
 // 发送消息（改进版）
+// —————————————————————————— 正确的 sendMessage() ——————————————————————————
 async function sendMessage() {
   const inputEl = document.getElementById("input");
   const input = inputEl.value.trim();
@@ -567,26 +424,20 @@ async function sendMessage() {
       return res.json();
     });
 
-    // 等 2 秒看看答案是否立即到
     const quickWait = new Promise(resolve => setTimeout(resolve, 100));
     const first = await Promise.race([fetchPromise, quickWait]);
 
     if (fetchPromise.done) {
-      // 答案已经到
       if (loadingMsg && loadingMsg.parentNode) chat.removeChild(loadingMsg);
       displayAIMessage(await fetchPromise);
     } else {
-
-      // 答案没到 → 开始阶段动画
       stageInterval = setInterval(() => {
-      if (cancelReply) return;
-      bubble.style.animation = ""; // 关闭呼吸动画
-      bubble.textContent = stages[stageIndex];
-      stageIndex = Math.min(stageIndex + 1, stages.length - 1);
-      }, 3000); // 改成 3 秒
+        if (cancelReply) return;
+        bubble.style.animation = "";
+        bubble.textContent = stages[stageIndex];
+        stageIndex = Math.min(stageIndex + 1, stages.length - 1);
+      }, 3000);
 
-
-      // 等 fetch 完成
       const data = await fetchPromise;
       clearInterval(stageInterval);
       if (cancelReply) return;
@@ -598,10 +449,8 @@ async function sendMessage() {
       const aiMsg = createMessage("ai", "");
       chat.appendChild(aiMsg);
       const bubble = aiMsg.querySelector(".bubble");
-
       const rawText = data.response || "（无回复）";
 
-      // 判断是否分段显示 Markdown
       const isShort = rawText.length < 50;
       const hasMarkdown = /[`*_#\[\]>\-]|\b(function|const|let|var|=>|class)\b|^(---|\*\*\*|___)$/m.test(rawText);
       const useMarkdown = hasMarkdown && !isShort;
@@ -633,152 +482,9 @@ async function sendMessage() {
         addButtonsToMessage(aiMsg, rawText);
       }
 
-      // 保存聊天记录
+      // 正确调用（不是定义！）
       saveChatRecords(input, rawText);
     }
-
-// 保存聊天记录的函数
-function saveChatRecords(input, rawText) {
-  const currentUserId = localStorage.getItem("currentUserId");
-  const isNewChat = !currentChatTitle; // 如果没有当前聊天标题，则认为是新聊天
-
-  // 新聊天逻辑
-// 新聊天逻辑 —— 强制 100% 独立会话（唯一需要改的地方）
-if (isNewChat) {
-  const raw = input.trim();
-  const preview = raw.length > 28 ? raw.slice(0, 28) + "..." : raw;
-  const uniqueId = Date.now().toString(36).slice(-5).toUpperCase(); // 例如 K9P4M
-
-// 显示给用户的标题（干净）
-const displayTitle = preview;
-
-// 真实用于存储的唯一 key（带隐藏ID，用户完全看不到）
-currentChatTitle = `${preview} #${uniqueId}`;   // ← 这个是真实 key
-
-  if (currentUserId) {
-    const titles = JSON.parse(localStorage.getItem(`chatTitles_${currentUserId}`) || "[]");
-    titles.unshift(currentChatTitle);
-    localStorage.setItem(`chatTitles_${currentUserId}`, JSON.stringify(titles));
-  } else {
-    guestChatTitles.unshift(currentChatTitle);
-    guestChatRecords[currentChatTitle] = [];
-    localStorage.setItem("guestChatTitles", JSON.stringify(guestChatTitles));
-    localStorage.setItem("guestChatRecords", JSON.stringify(guestChatRecords));
-  }
-}
-
-  // 保存聊天记录
-  if (currentUserId) {
-    // 对于登录用户，保存聊天记录
-    saveChatMessageByTitle(currentUserId, currentChatTitle, "user", input);
-    saveChatMessageByTitle(currentUserId, currentChatTitle, "ai", rawText);
-    loadChatTitles(currentUserId); // 更新聊天标题
-  } else {
-    // 对于游客用户，保存聊天记录
-    if (!guestChatRecords[currentChatTitle]) guestChatRecords[currentChatTitle] = []; // 如果没有记录，初始化
-    guestChatRecords[currentChatTitle].push({ role: "user", text: input }); // 保存用户消息
-    guestChatRecords[currentChatTitle].push({ role: "ai", text: rawText }); // 保存AI消息
-    localStorage.setItem("guestChatTitles", JSON.stringify(guestChatTitles)); // 更新游客标题列表
-    localStorage.setItem("guestChatRecords", JSON.stringify(guestChatRecords)); // 更新游客聊天记录
-    updateGuestSidebar(); // 更新侧边栏
-  }
-}
-
-// 保存聊天消息
-function saveChatMessageByTitle(userId, title, role, text) {
-  const key = `chat_${userId}_${title}`; // 按照用户ID和标题生成键
-  const history = JSON.parse(localStorage.getItem(key) || "[]"); // 获取该标题下的历史聊天记录
-  history.push({ role, text }); // 添加新消息
-  localStorage.setItem(key, JSON.stringify(history)); // 保存更新后的聊天记录
-}
-
-// 加载聊天标题
-function loadChatTitles(userId) {
-  const key = `chatTitles_${userId}`;
-  const titles = JSON.parse(localStorage.getItem(key) || "[]");
-  const chatList = document.getElementById("chatList");
-  if (!chatList) return;
-  chatList.innerHTML = "";
-
-  titles.forEach(title => {
-    const li = document.createElement("li");
-    li.className = "chat-title";
-    li.style.display = "flex";
-
-    const span = document.createElement("span");
-    span.textContent = title.split(" #")[0];
-    li.appendChild(span);
-
-    const delBtn = document.createElement("button");
-    delBtn.style.backgroundColor = "transparent";
-    delBtn.style.color = "white";
-    delBtn.style.border = "none";
-    delBtn.style.padding = "2px 8px";
-    delBtn.style.cursor = "pointer";
-    delBtn.style.fontWeight = "bold";
-    delBtn.style.borderRadius = "4px";
-    delBtn.style.fontSize = "10px";
-    delBtn.textContent = "X";
-    delBtn.style.marginLeft = "auto";
-    delBtn.onclick = (e) => {
-      e.stopPropagation();
-      openDeleteConfirm(getRealTitle(e.target.closest("li").querySelector("span").textContent));
-    };
-
-    li.appendChild(delBtn);
-    li.onclick = (e) => {
-      if (e.target.tagName === 'BUTTON') return;
-      chatList.querySelectorAll('li').forEach(l => l.classList.remove('selected'));
-      li.classList.add('selected');
-      loadChatByTitle(userId, getRealTitle(title));
-    };
-
-    chatList.appendChild(li);
-  });
-}
-
-// 更新游客侧边栏
-function updateGuestSidebar() {
-  const chatList = document.getElementById("chatList");
-  if (!chatList) return;
-  chatList.innerHTML = "";
-
-  guestChatTitles = JSON.parse(localStorage.getItem("guestChatTitles") || "[]");
-  guestChatRecords = JSON.parse(localStorage.getItem("guestChatRecords") || "{}");
-
-  guestChatTitles.forEach(title => {
-    const li = document.createElement("li");
-    li.className = "chat-title";
-    li.style.display = "flex";
-
-    const span = document.createElement("span");
-    span.textContent = title.split(" #")[0];
-    li.appendChild(span);
-
-    const delBtn = document.createElement("button");
-    delBtn.style.backgroundColor = "transparent";
-    delBtn.style.color = "white";
-    delBtn.style.border = "none";
-    delBtn.style.padding = "2px 8px";
-    delBtn.style.cursor = "pointer";
-    delBtn.style.fontWeight = "bold";
-    delBtn.style.borderRadius = "4px";
-    delBtn.style.fontSize = "10px";
-    delBtn.textContent = "X";
-    delBtn.style.marginLeft = "auto";
-    delBtn.onclick = (e) => {
-      e.stopPropagation();
-      openDeleteConfirm(getRealTitle(e.target.closest("li").querySelector("span").textContent));
-    };
-
-    li.appendChild(delBtn);
-    chatList.appendChild(li);
-  });
-
-  localStorage.setItem("guestChatTitles", JSON.stringify(guestChatTitles));
-  localStorage.setItem("guestChatRecords", JSON.stringify(guestChatRecords));
-}
-
   } catch (error) {
     if (loadingMsg && loadingMsg.parentNode) chat.removeChild(loadingMsg);
     const errorMsg = createMessage("ai", "Sorry, server busy. Please try again.");
@@ -790,7 +496,54 @@ function updateGuestSidebar() {
   cancelReply = false;
   restoreSendButton();
 }
+// —————————————————————————— sendMessage() 结束 ——————————————————————————
 
+
+
+// —————————————————————————— 必须放在 sendMessage() 外面 ——————————————————————————
+function saveChatRecords(input, rawText) {
+  const currentUserId = localStorage.getItem("currentUserId");
+  const isNewChat = !currentChatTitle;
+
+  if (isNewChat) {
+    const raw = input.trim();
+    const preview = raw.length > 28 ? raw.slice(0, 28) + "..." : raw;
+    const uniqueId = Date.now().toString(36).slice(-5).toUpperCase();
+    currentChatTitle = `${preview} #${uniqueId}`;
+
+    if (currentUserId) {
+      const titles = JSON.parse(localStorage.getItem(`chatTitles_${currentUserId}`) || "[]");
+      titles.unshift(currentChatTitle);
+      localStorage.setItem(`chatTitles_${currentUserId}`, JSON.stringify(titles));
+    } else {
+      guestChatTitles.unshift(currentChatTitle);
+      guestChatRecords[currentChatTitle] = [];
+      localStorage.setItem("guestChatTitles", JSON.stringify(guestChatTitles));
+      localStorage.setItem("guestChatRecords", JSON.stringify(guestChatRecords));
+    }
+  }
+
+  if (currentUserId) {
+    saveChatMessageByTitle(currentUserId, currentChatTitle, "user", input);
+    saveChatMessageByTitle(currentUserId, currentChatTitle, "ai", rawText);
+    loadChatTitles(currentUserId);
+  } else {
+    if (!guestChatRecords[currentChatTitle]) guestChatRecords[currentChatTitle] = [];
+    guestChatRecords[currentChatTitle].push({ role: "user", text: input });
+    guestChatRecords[currentChatTitle].push({ role: "ai", text: rawText });
+    localStorage.setItem("guestChatTitles", JSON.stringify(guestChatTitles));
+    localStorage.setItem("guestChatRecords", JSON.stringify(guestChatRecords));
+    updateGuestSidebar();
+  }
+}
+
+function saveChatMessageByTitle(userId, title, role, text) {
+  const key = `chat_${userId}_${title}`;
+  const history = JSON.parse(localStorage.getItem(key) || "[]");
+  history.push({ role, text });
+  localStorage.setItem(key, JSON.stringify(history));
+}
+// —————————————————————————— 两个函数结束 ——————————————————————————
 
 
 function restoreSendButton() {
@@ -1003,49 +756,52 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 // 删除确认弹窗专用函数（只加这 3 个函数）
-function openDeleteConfirm(title) {
-  chatTitleToDelete = title;
+function openDeleteConfirm(li) {
+  liToDelete = li;
+
+  // 可选：让弹窗显示具体标题（推荐）
+  const displayTitle = li.querySelector("span").textContent.trim();
+  const h2 = document.querySelector("#deleteConfirmModal h2");
+  if (h2) h2.textContent = `Delete "${displayTitle}"?`;
+
+  // 显示弹窗
   document.getElementById("deleteConfirmModal").classList.remove("hidden");
   document.getElementById("deleteConfirmModal").style.display = "flex";
 }
 
+// 关闭弹窗
 function closeDeleteModal() {
   document.getElementById("deleteConfirmModal").classList.add("hidden");
   document.getElementById("deleteConfirmModal").style.display = "none";
-  chatTitleToDelete = null;
+  liToDelete = null;
 }
 
+// 确认删除（最核心、最安全的版本）
 function confirmDelete() {
-  if (!chatTitleToDelete) return;
+  if (!liToDelete) return;
+
+  // 100% 准确拿到真实标题，再也不可能删错
+  const realTitle = liToDelete.dataset.fullTitle;
 
   const userId = localStorage.getItem("currentUserId");
-  
+
   if (userId) {
-    deleteChat(userId, chatTitleToDelete);
+    // 登录用户
+    deleteChat(userId, realTitle);
+    loadChatTitles(userId);           // 刷新侧边栏
   } else {
-    guestChatTitles = guestChatTitles.filter(t => t !== chatTitleToDelete);
-    delete guestChatRecords[chatTitleToDelete];
+    // 游客
+    guestChatTitles = guestChatTitles.filter(t => t !== realTitle);
+    delete guestChatRecords[realTitle];
     localStorage.setItem("guestChatTitles", JSON.stringify(guestChatTitles));
     localStorage.setItem("guestChatRecords", JSON.stringify(guestChatRecords));
     updateGuestSidebar();
   }
 
-  // 关键修复：不管登录还是游客，只要删的是当前正在看的聊天，就重置界面和标题
-  if (currentChatTitle === chatTitleToDelete) {
-    resetChat();   // 这一行会自动执行 currentChatTitle = null; 彻底解决“hi 存到旧标题”的 bug！
+  // 如果删的是当前正在看的聊天 → 回到欢迎页
+  if (currentChatTitle === realTitle) {
+    resetChat();
   }
 
   closeDeleteModal();
-}
-
-  // get realtime底部
-function getRealTitle(displayTitle) {
-  if (!displayTitle) return null;
-  const userId = localStorage.getItem("currentUserId");
-  if (userId) {
-    const titles = JSON.parse(localStorage.getItem(`chatTitles_${userId}`) || "[]");
-    return titles.find(t => t.startsWith(displayTitle + " #")) || titles.find(t => t === displayTitle);
-  } else {
-    return guestChatTitles.find(t => t.startsWith(displayTitle + " #")) || guestChatTitles.find(t => t === displayTitle);
-  }
 }
