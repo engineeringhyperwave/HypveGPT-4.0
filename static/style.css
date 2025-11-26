@@ -347,8 +347,6 @@ textarea::-webkit-scrollbar-thumb:hover {
 }
 
 .settings-icon {
-  display: flex; /* 强制显示 */
-  position: absolute;
   top: 8px;
   width: 26px;
   height: 26px;
@@ -825,9 +823,8 @@ textarea::-webkit-scrollbar-thumb:hover {
 }
 
 .settings-button {
-    display: flex !important;        /* 强制显示 */
     position: absolute !important;
-    top: 8px !important;
+    top: 6px !important;
     right: 10px !important;
     z-index: 30 !important;
     width: 44px !important;
