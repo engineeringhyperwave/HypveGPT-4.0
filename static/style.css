@@ -812,3 +812,14 @@ textarea::-webkit-scrollbar-thumb:hover {
     padding: 8px 10px;
   }
 }
+
+#chat {
+  transition: opacity 180ms ease-out, transform 180ms ease-out;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+#chat.switching {
+  opacity: 0.04;
+  transform: translateY(6px);
+}
