@@ -347,12 +347,12 @@ textarea::-webkit-scrollbar-thumb:hover {
 }
 
 .settings-icon {
-  width: 24px;
-  height: 24px;
+  display: flex; /* 强制显示 */
+  position: absolute;
+  top: 8px;
+  width: 26px;
+  height: 26px;
   filter: brightness(0) invert(1); /* ✅ 白色图标适配深色背景 */
-  padding: 6px;
-  border-radius: 6px;
-  cursor: pointer;
 }
 
 #chatList {
@@ -823,3 +823,14 @@ textarea::-webkit-scrollbar-thumb:hover {
   opacity: 0.04;
   transform: translateY(6px);
 }
+
+.settings-button {
+    display: flex !important;        /* 强制显示 */
+    position: absolute !important;
+    top: 8px !important;
+    right: 10px !important;
+    z-index: 30 !important;
+    width: 44px !important;
+    height: 44px !important;
+    padding: 10px !important;
+  }
