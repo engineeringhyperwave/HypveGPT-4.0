@@ -1,13 +1,12 @@
 let chatVisible = false;
 let cancelReply = false;
 let currentChatTitle = null;
-let liToDelete = null;          // 替换掉了原来的 chatTitleToDelete
+let liToDelete = null;
 let guestChatTitles = [];
 let guestChatRecords = {};
 const API_URL = "/generate";
 
-
-// ←←←←←←←←←←←←←← 把这个函数移到最顶部，全局变量下面 ←←←←←←←←←←←←←←
+// 加载聊天标题
 function loadChatTitles(userId) {
   const key = `chatTitles_${userId}`;
   const titles = JSON.parse(localStorage.getItem(key) || "[]");
@@ -15,13 +14,12 @@ function loadChatTitles(userId) {
   if (!chatList) return;
   chatList.innerHTML = "";
 
-  titles.forEach(fullTitle => {                    // fullTitle 就是完整标题，如 "今天吃啥 #K9P4M"
-    const displayTitle = fullTitle.split(" #")[0]; // 显示用的短标题
-
+  titles.forEach(fullTitle => {
+    const displayTitle = fullTitle.split(" #")[0];
     const li = document.createElement("li");
     li.className = "chat-title";
     li.style.display = "flex";
-    li.dataset.fullTitle = fullTitle;              // 关键：真实标题存在 DOM 上，永不出错！
+    li.dataset.fullTitle = fullTitle;
 
     const span = document.createElement("span");
     span.textContent = displayTitle;
@@ -31,34 +29,29 @@ function loadChatTitles(userId) {
     delBtn.textContent = "X";
     delBtn.style.cssText = "margin-left:auto;background:transparent;border:none;color:white;cursor:pointer;font-weight:bold;font-size:10px;padding:2px 8px;border-radius:4px;";
     
-    // 删除按钮：直接从 DOM 拿真实标题
     delBtn.onclick = (e) => {
       e.stopPropagation();
-      openDeleteConfirm(li);  // 直接传整个 li，里面有 dataset.fullTitle
+      openDeleteConfirm(li);
     };
 
     li.appendChild(delBtn);
-
-    // 点击标题加载聊天：直接用 fullTitle
     li.onclick = (e) => {
       if (e.target.tagName === 'BUTTON') return;
-      
       chatList.querySelectorAll('li').forEach(l => l.classList.remove('selected'));
       li.classList.add('selected');
-      
-      loadChatByTitle(userId, fullTitle);  // 直接传完整标题
+      loadChatByTitle(userId, fullTitle);
     };
 
     chatList.appendChild(li);
   });
 }
 
-// 保留所有 Emoji，只删真乱码（孤立代理对）
+// 文本清理
 function sanitizeText(text) {
   return text.replace(/(^[\uD800-\uDBFF](?![\uDC00-\uDFFF])|^[\uDC00-\uDFFF](?![\uD800-\uDBFF]))/g, "");
 }
 
-// 获取最后一条用户消息
+// 获取最后用户消息
 function getLastUserMessage() {
   const currentUserId = localStorage.getItem("currentUserId");
   if (currentUserId && currentChatTitle) {
@@ -82,88 +75,294 @@ async function sendMessageWithText(input) {
   inputEl.value = originalValue;
 }
 
-// 创建消息节点（核心：保留 Emoji + 防 XSS）
-function createMessage(role, text) {
+// 创建消息节点（增强Markdown支持 + 流式渲染优化）
+function createMessage(role, text, isStreaming = false) {
   const msg = document.createElement("div");
   msg.className = `message ${role}`;
-
   const bubble = document.createElement("div");
   bubble.className = "bubble";
-
-  // 保留 Emoji，只删除孤立代理对
   let cleanText = sanitizeText(text);
 
-  // 调整代码块前后的换行
-  cleanText = cleanText
-    .replace(/```([\w]*)/g, '\n\n```$1')
-    .replace(/\n```/g, '\n\n```');
+  const isShort = cleanText.length < 80;
+  const hasMarkdown = /[`*_#\[\]>\-]|#{1,6}\s|\|.*\|/m.test(cleanText);
+  const isCodeBlock = /```[\s\S]*?```/m.test(cleanText);
+  const hasTable = /\|.*\|.*\n\|[-:|]+\|/.test(cleanText);
+  const useMarkdown = role === "ai" && (!isShort || hasMarkdown || isCodeBlock);
 
-  const hasMarkdown = /[`*_#\[\]>\-]|\b(function|const|let|var|=>|class)\b|^(---|\*\*\*|___)$/m.test(cleanText);
-  const isCodeBlock = cleanText.includes("```");
-
-  if (role === "ai" && (hasMarkdown || isCodeBlock)) {
+  if (useMarkdown) {
     if (typeof marked === "undefined" || typeof DOMPurify === "undefined") {
-      console.error("Marked or DOMPurify not loaded");
       bubble.textContent = cleanText;
     } else {
-      // 渲染 Markdown
-      let html = marked.parse(cleanText, { breaks: true });
-      html = html.replace(/<p>\s*(---|\*\*\*|___)\s*<\/p>/g, '<hr>');
-      const sanitized = DOMPurify.sanitize(html);
-      bubble.innerHTML = `<div class="markdown-body">${sanitized}</div>`;
+      try {
+        cleanText = cleanText.replace(/```(\w*)\n?/g, '```$1\n');
+        marked.setOptions({
+          breaks: true,
+          gfm: true,
+          tables: true,
+          pedantic: false,
+          smartLists: true,
+          smartypants: true
+        });
 
-      // 高亮代码块
-      if (typeof hljs !== "undefined") {
-        bubble.querySelectorAll('pre code').forEach(block => hljs.highlightBlock(block));
+        let html = marked.parse(cleanText);
+        html = html
+          .replace(/<p>\s*(---|\*\*\*|___)\s*<\/p>/g, '<hr class="markdown-hr">')
+          .replace(/<table>/g, '<table class="markdown-table">')
+          .replace(/<blockquote>/g, '<blockquote class="markdown-quote">')
+          .replace(/<h1>/g, '<h1 class="markdown-h1">')
+          .replace(/<h2>/g, '<h2 class="markdown-h2">')
+          .replace(/<h3>/g, '<h3 class="markdown-h3">');
+
+        const sanitized = DOMPurify.sanitize(html, {
+          ALLOWED_TAGS: [
+            'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+            'p', 'br', 'hr',
+            'ul', 'ol', 'li',
+            'strong', 'em', 'b', 'i', 'u',
+            'code', 'pre', 'blockquote',
+            'table', 'thead', 'tbody', 'tr', 'th', 'td',
+            'a', 'img', 'div', 'span'
+          ],
+          ALLOWED_ATTR: ['class', 'href', 'src', 'alt', 'title', 'target']
+        });
+
+        bubble.innerHTML = `<div class="markdown-body enhanced-markdown">${sanitized}</div>`;
+
+        if (!isStreaming) {
+          processCodeBlocksImmediately(bubble);
+        } else {
+          bubble.dataset.needsProcessing = "true";
+          setTimeout(() => processCodeBlocksImmediately(bubble), 50);
+        }
+      } catch (error) {
+        bubble.textContent = cleanText;
       }
-
-      // 给每个 <pre> 添加右上角 Copy 按钮
-      bubble.querySelectorAll('pre').forEach(pre => {
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'copy-code-btn';
-        copyBtn.innerHTML = `
-          <svg viewBox="0 0 24 24" class="copy-icon">
-            <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-          </svg>
-          <span class="copy-text">Copy</span>
-        `;
-        copyBtn.onclick = () => {
-          navigator.clipboard.writeText(pre.innerText)
-            .then(() => {
-              copyBtn.querySelector('.copy-text').textContent = 'Copied!';
-              setTimeout(() => {
-                copyBtn.querySelector('.copy-text').textContent = 'Copy';
-              }, 1500);
-            });
-        };
-
-        pre.classList.add('pre-with-copy');
-        pre.appendChild(copyBtn);
-      });
     }
   } else {
     bubble.textContent = cleanText;
   }
 
-  // AI 消息样式
   if (role === "ai") {
     msg.classList.add('ai-message');
     msg.dataset.messageId = Date.now();
   }
 
-  // 禁用滚动条，但内容可复制
   bubble.classList.add('bubble-no-scroll');
-
   msg.appendChild(bubble);
   return msg;
 }
 
-// 添加按钮到 AI 消息
+// 立即处理代码块
+function processCodeBlocksImmediately(container) {
+  if (!container) return;
+  
+  if (typeof hljs !== "undefined" && hljs.highlightElement) {
+    container.querySelectorAll('pre code:not([data-highlighted="true"])').forEach(block => {
+      try {
+        hljs.highlightElement(block);
+        block.dataset.highlighted = "true";
+      } catch (e) {}
+    });
+  }
+  
+  container.querySelectorAll('pre:not(.pre-with-copy)').forEach(pre => {
+    if (pre.textContent.trim().length > 0) {
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'copy-code-btn';
+      copyBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" class="copy-icon">
+          <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+        </svg>
+        <span class="copy-text">Copy</span>
+      `;
+      copyBtn.onclick = () => {
+        const codeText = pre.innerText.replace(/Copy$/, '').trim();
+        navigator.clipboard.writeText(codeText)
+          .then(() => {
+            const copyTextSpan = copyBtn.querySelector('.copy-text');
+            if (copyTextSpan) copyTextSpan.textContent = 'Copied!';
+            copyBtn.style.background = '#2b2b2b ';
+            setTimeout(() => {
+              if (copyTextSpan) copyTextSpan.textContent = 'Copy';
+              copyBtn.style.background = '';
+            }, 1500);
+          });
+      };
+      pre.classList.add('pre-with-copy');
+      pre.appendChild(copyBtn);
+    }
+  });
+}
+
+// 处理流式渲染代码块
+function processStreamingCodeBlocks(bubble) {
+  if (!bubble) return;
+  if (bubble.dataset.needsProcessing === "true") {
+    delete bubble.dataset.needsProcessing;
+    processCodeBlocksImmediately(bubble);
+  }
+  processCodeBlocksImmediately(bubble);
+}
+
+// 检查是否需要Markdown
+function shouldUseMarkdown(text) {
+  if (!text || text.length < 30) return false;
+  const hasMarkdownChars = /[`*_#\[\]>\-]|#{1,6}\s|\|.*\|/.test(text);
+  const hasCodeBlock = /```[\s\S]*?```/.test(text);
+  const hasList = /^[\s]*[\-\*\+]\s|\d+\.\s/.test(text);
+  const hasHeading = /^#{1,6}\s+.+/m.test(text);
+  const hasBlockQuote = /^>\s+.+/m.test(text);
+  return hasMarkdownChars || hasCodeBlock || hasList || hasHeading || hasBlockQuote;
+}
+
+// 流式渲染器类
+class StreamingRenderer {
+  constructor(bubble) {
+    this.bubble = bubble;
+    this.lastText = '';
+    this.lastUpdateTime = 0;
+    this.updateThreshold = 200;
+    this.updateCount = 0;
+  }
+  
+  update(text) {
+    const now = Date.now();
+    const timeSinceLastUpdate = now - this.lastUpdateTime;
+    const textChangedSignificantly = this.hasSignificantChange(text);
+    const shouldUpdate = textChangedSignificantly || timeSinceLastUpdate > this.updateThreshold;
+    
+    if (shouldUpdate) {
+      this.renderStreamingMarkdown(this.bubble, text);
+      this.lastText = text;
+      this.lastUpdateTime = now;
+      this.updateCount++;
+      
+      if (this.updateCount % 3 === 0) {
+        setTimeout(() => this.processPartialCodeBlocks(this.bubble), 10);
+      }
+      return true;
+    }
+    return false;
+  }
+  
+  hasSignificantChange(newText) {
+    if (Math.abs(newText.length - this.lastText.length) > 30) return true;
+    const importantPatterns = [
+      /```[\s\S]{30,}```/,
+      /\n#{1,6}\s+[^\n]{15,}/,
+      /\n-{3,}/,
+      /\n```\w*\n[\s\S]{20,}/,
+      /\n```\s*$/,
+    ];
+    const newPart = newText.slice(this.lastText.length);
+    return importantPatterns.some(pattern => pattern.test(newPart));
+  }
+  
+  renderStreamingMarkdown(bubble, text) {
+    if (typeof marked === "undefined" || typeof DOMPurify === "undefined") {
+      bubble.textContent = text;
+      return;
+    }
+    
+    try {
+      let processedText = this.preprocessStreamingMarkdown(text);
+      marked.setOptions({ breaks: true, gfm: true, silent: true });
+      let html = marked.parse(processedText);
+      html = `<div class="streaming-markdown">${html}</div>`;
+      html = DOMPurify.sanitize(html, {
+        ALLOWED_TAGS: ['p', 'br', 'code', 'pre', 'strong', 'em', 'b', 'i', 'u',
+                      'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+                      'blockquote', 'hr', 'div', 'span'],
+        ALLOWED_ATTR: ['class', 'data-highlighted']
+      });
+      bubble.innerHTML = html;
+    } catch (error) {
+      bubble.textContent = text;
+    }
+  }
+  
+  preprocessStreamingMarkdown(text) {
+    let processed = text;
+    processed = processed.replace(/```(\s*\n)/g, '```text$1');
+    const backtickCount = (processed.match(/```/g) || []).length;
+    if (backtickCount % 2 === 1) processed += '\n```';
+    processed = processed.replace(/(\n)[ ]{2,}([-*+]|\d+\.)/g, '$1$2');
+    processed = processed.replace(/(\n)#{1,6}([^#\s])/g, '$1#$2');
+    return processed;
+  }
+  
+  processPartialCodeBlocks(bubble) {
+    if (typeof hljs === "undefined") return;
+    bubble.querySelectorAll('pre').forEach(pre => {
+      const code = pre.querySelector('code');
+      if (!code || code.dataset.highlighted === "true") return;
+      try {
+        hljs.highlightElement(code);
+        code.dataset.highlighted = "true";
+      } catch (e) {
+        if (!code.className.includes('hljs')) code.className = 'hljs';
+      }
+      if (!pre.querySelector('.copy-code-btn') && code.textContent.trim().length > 10) {
+        this.addCopyButtonToPre(pre);
+      }
+    });
+  }
+  
+  addCopyButtonToPre(pre) {
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'copy-code-btn';
+    copyBtn.innerHTML = `
+      <svg viewBox="0 0 24 24" class="copy-icon">
+        <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+      </svg>
+      <span class="copy-text">Copy</span>
+    `;
+    copyBtn.onclick = (e) => {
+      e.stopPropagation();
+      const codeText = pre.innerText.replace(/Copy$/, '').trim();
+      navigator.clipboard.writeText(codeText)
+        .then(() => {
+          const copyTextSpan = copyBtn.querySelector('.copy-text');
+          if (copyTextSpan) copyTextSpan.textContent = 'Copied!';
+          copyBtn.style.background = '#2b2b2b';
+          setTimeout(() => {
+            if (copyTextSpan) copyTextSpan.textContent = 'Copy';
+            copyBtn.style.background = '';
+          }, 1500);
+        });
+    };
+    pre.classList.add('pre-with-copy');
+    pre.appendChild(copyBtn);
+  }
+  
+  finalize(text) {
+    try {
+      if (typeof marked !== "undefined" && typeof DOMPurify !== "undefined") {
+        marked.setOptions({ breaks: true, gfm: true, tables: true });
+        let html = marked.parse(text);
+        html = DOMPurify.sanitize(html, {
+          ALLOWED_TAGS: ['p', 'br', 'code', 'pre', 'strong', 'em', 'b', 'i', 'u',
+                        'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+                        'blockquote', 'hr', 'div', 'span', 'table', 'thead',
+                        'tbody', 'tr', 'th', 'td'],
+          ALLOWED_ATTR: ['class', 'data-highlighted']
+        });
+        this.bubble.innerHTML = `<div class="markdown-body enhanced-markdown">${html}</div>`;
+      } else {
+        this.bubble.textContent = text;
+      }
+      processCodeBlocksImmediately(this.bubble);
+    } catch (error) {
+      this.bubble.textContent = text;
+    }
+  }
+}
+
+// 添加按钮到消息
 function addButtonsToMessage(msg, text) {
   const buttonContainer = document.createElement("div");
   buttonContainer.className = "message-buttons";
 
-  // Regenerate 按钮
   const regenerateBtn = document.createElement("button");
   regenerateBtn.className = "message-btn regenerate-btn";
   regenerateBtn.innerHTML = `
@@ -174,13 +373,10 @@ function addButtonsToMessage(msg, text) {
   regenerateBtn.title = "Regenerate";
   regenerateBtn.onclick = () => {
     const lastUserMessage = getLastUserMessage();
-    if (lastUserMessage) {
-      sendMessageWithText(lastUserMessage);
-    }
+    if (lastUserMessage) sendMessageWithText(lastUserMessage);
   };
   buttonContainer.appendChild(regenerateBtn);
 
-  // Copy 按钮
   const copyBtn = document.createElement("button");
   copyBtn.className = "message-btn copy-btn";
   copyBtn.innerHTML = `
@@ -189,9 +385,7 @@ function addButtonsToMessage(msg, text) {
     </svg>
   `;
   copyBtn.title = "Copy";
-
   const originalCopySVG = copyBtn.innerHTML;
-
   copyBtn.onclick = () => {
     navigator.clipboard.writeText(text).then(() => {
       copyBtn.innerHTML = `
@@ -204,10 +398,9 @@ function addButtonsToMessage(msg, text) {
         copyBtn.innerHTML = originalCopySVG;
         copyBtn.title = "Copy";
       }, 2000);
-    }).catch(err => console.error("Copy failed:", err));
+    });
   };
   buttonContainer.appendChild(copyBtn);
-
   msg.appendChild(buttonContainer);
 }
 
@@ -230,45 +423,30 @@ function saveChatMessageByTitle(userId, title, role, text) {
 }
 
 // 删除聊天
-// 删除聊天
 function deleteChat(userId, title) {
   const titleKey = `chatTitles_${userId}`;
   const titles = JSON.parse(localStorage.getItem(titleKey) || "[]");
-
-  // 删除指定的标题
   const updatedTitles = titles.filter(t => t !== title);
   localStorage.setItem(titleKey, JSON.stringify(updatedTitles));
-
-  // 删除该标题对应的聊天记录
   localStorage.removeItem(`chat_${userId}_${title}`);
-  
-  // 更新聊天界面
   loadChatTitles(userId);
-
-  // 如果当前聊天标题是被删除的标题，重置聊天界面
-  if (currentChatTitle === title) {
-    resetChat(); // 重置聊天界面并清空当前聊天
-  }
+  if (currentChatTitle === title) resetChat();
 }
 
-
+// 更新游客侧边栏
 function updateGuestSidebar() {
   const chatList = document.getElementById("chatList");
   if (!chatList) return;
-
   guestChatTitles = JSON.parse(localStorage.getItem("guestChatTitles") || "[]");
   guestChatRecords = JSON.parse(localStorage.getItem("guestChatRecords") || "{}");
-
   chatList.innerHTML = "";
 
   guestChatTitles.forEach(fullTitle => {
     const displayTitle = fullTitle.split(" #")[0];
-
     const li = document.createElement("li");
     li.className = "chat-title";
     li.style.display = "flex";
-    li.dataset.fullTitle = fullTitle;  // 关键！
-
+    li.dataset.fullTitle = fullTitle;
     const span = document.createElement("span");
     span.textContent = displayTitle;
     li.appendChild(span);
@@ -284,35 +462,28 @@ function updateGuestSidebar() {
 
     li.onclick = e => {
       if (e.target.tagName === "BUTTON") return;
-
       const chat = document.getElementById("chat");
       chat.classList.add("switching");
       setTimeout(() => chat.classList.remove("switching"), 200);
-
       chatList.querySelectorAll("li").forEach(l => l.classList.remove("selected"));
       li.classList.add("selected");
-
       chat.innerHTML = "";
       chat.style.display = "flex";
       document.getElementById("title").style.display = "none";
       document.getElementById("inputContainer").classList.add("bottom-input");
       chatVisible = true;
       currentChatTitle = fullTitle;
-
       const history = guestChatRecords[fullTitle] || [];
       history.forEach(msg => {
         const el = createMessage(msg.role, msg.text);
         chat.appendChild(el);
         if (msg.role === "ai") addButtonsToMessage(el, msg.text);
       });
-
       chat.scrollTop = chat.scrollHeight;
     };
-
     chatList.appendChild(li);
   });
 
-  // 高亮当前
   setTimeout(() => {
     if (currentChatTitle && chatList) {
       const activeLi = [...chatList.querySelectorAll("li")].find(
@@ -325,40 +496,30 @@ function updateGuestSidebar() {
 
 // 加载指定聊天
 function loadChatByTitle(userId, title) {
-  // title 现在传进来的一定是真实标题（比如 "hi #A1B2C"），不要再转换了！
   if (!title) return;
-
   const chat = document.getElementById("chat");
   chat.classList.add("switching");
-
   const key = `chat_${userId}_${title}`;
   const history = JSON.parse(localStorage.getItem(key) || "[]");
-
   chat.innerHTML = "";
   chat.style.display = "flex";
   document.getElementById("title").style.display = "none";
   document.getElementById("inputContainer").classList.add("bottom-input");
   chatVisible = true;
-  currentChatTitle = title;                    // ← 直接赋值！不要 getRealTitle！
+  currentChatTitle = title;
 
   history.forEach(msg => {
     const el = createMessage(msg.role, msg.text);
     chat.appendChild(el);
-    if (msg.role === "ai") {
-      addButtonsToMessage(el, msg.text);
-    }
+    if (msg.role === "ai") addButtonsToMessage(el, msg.text);
   });
 
   chat.scrollTop = chat.scrollHeight;
   requestAnimationFrame(() => chat.classList.remove("switching"));
-
-  // 保存这次打开的是哪个聊天（用于下次刷新页面自动恢复）
   localStorage.setItem(`lastOpenedChat_${userId}`, title);
 }
 
 // 发送消息
-// 发送消息（改进版）
-// —————————————————————————— 正确的 sendMessage() ——————————————————————————
 async function sendMessage() {
   const inputEl = document.getElementById("input");
   const input = inputEl.value.trim();
@@ -372,32 +533,26 @@ async function sendMessage() {
     chatVisible = true;
   }
 
-  // 用户消息
   const userMsg = createMessage("user", input);
   chat.appendChild(userMsg);
   inputEl.value = "";
   resizeTextarea();
   chat.scrollTop = chat.scrollHeight;
 
-  // AI loading
-  const loadingMsg = createMessage("ai", "⬤");
+  const loadingMsg = createMessage("ai", "⬤", true);
   chat.appendChild(loadingMsg);
-  const bubble = loadingMsg.querySelector(".bubble");
-  bubble.style.cssText = `
+  const loadingBubble = loadingMsg.querySelector(".bubble");
+  loadingBubble.style.cssText = `
     display: inline-block;
     animation: pureBreathe 2s infinite ease-in-out;
     line-height: 1.6;
   `;
   if (!document.getElementById('pure-breathe')) {
     document.head.insertAdjacentHTML('beforeend', `<style id="pure-breathe">
-      @keyframes pureBreathe {
-        0%, 100% { transform: scale(0.6); }
-        50%      { transform: scale(1.1); }
-      }
+      @keyframes pureBreathe { 0%,100% { transform: scale(0.6); } 50% { transform: scale(1.1); } }
     </style>`);
   }
 
-  // Cancel 按钮
   const sendBtn = document.querySelector(".send-icon");
   sendBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20">
     <rect x="5" y="5" width="14" height="14" rx="2" fill="#1a1a1a" stroke="white" stroke-width="3.5"/>
@@ -410,81 +565,90 @@ async function sendMessage() {
     restoreSendButton();
   };
 
-  let stageInterval;
-  const stages = ["Searching . . .", "Analyzing . . .", "Generating . . ."];
-  let stageIndex = 0;
-
   try {
-    const fetchPromise = fetch(API_URL, {
+    const response = await fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json; charset=utf-8" },
-      body: JSON.stringify({ prompt: input })
-    }).then(res => {
-      if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
-      return res.json();
+      body: JSON.stringify({ prompt: input, stream: true })
     });
 
-    const quickWait = new Promise(resolve => setTimeout(resolve, 100));
-    const first = await Promise.race([fetchPromise, quickWait]);
+    if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+    if (loadingMsg && loadingMsg.parentNode) chat.removeChild(loadingMsg);
 
-    if (fetchPromise.done) {
-      if (loadingMsg && loadingMsg.parentNode) chat.removeChild(loadingMsg);
-      displayAIMessage(await fetchPromise);
-    } else {
-      stageInterval = setInterval(() => {
-        if (cancelReply) return;
-        bubble.style.animation = "";
-        bubble.textContent = stages[stageIndex];
-        stageIndex = Math.min(stageIndex + 1, stages.length - 1);
-      }, 3000);
+    const aiMsg = createMessage("ai", "", true);
+    chat.appendChild(aiMsg);
+    const aiBubble = aiMsg.querySelector(".bubble");
+    let accumulatedText = "";
+    const streamRenderer = new StreamingRenderer(aiBubble);
+    let isRenderingMarkdown = false;
 
-      const data = await fetchPromise;
-      clearInterval(stageInterval);
-      if (cancelReply) return;
-      if (loadingMsg && loadingMsg.parentNode) chat.removeChild(loadingMsg);
-      displayAIMessage(data);
-    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
 
-    function displayAIMessage(data) {
-      const aiMsg = createMessage("ai", "");
-      chat.appendChild(aiMsg);
-      const bubble = aiMsg.querySelector(".bubble");
-      const rawText = data.response || "（无回复）";
-
-      const isShort = rawText.length < 50;
-      const hasMarkdown = /[`*_#\[\]>\-]|\b(function|const|let|var|=>|class)\b|^(---|\*\*\*|___)$/m.test(rawText);
-      const useMarkdown = hasMarkdown && !isShort;
-
-      if (useMarkdown) {
-        let html = marked.parse(rawText, { breaks: true });
-        html = html.replace(/<p>\s*(---|\*\*\*|___)\s*<\/p>/g, '<hr>');
-        html = DOMPurify.sanitize(html);
-
-        const totalLength = html.length;
-        const steps = [
-          Math.floor(totalLength * 0.2),
-          Math.floor(totalLength * 0.6),
-          Math.floor(totalLength * 0.9),
-          totalLength
-        ];
-
-        (async () => {
-          for (const idx of steps) {
-            if (cancelReply) break;
-            bubble.innerHTML = html.slice(0, idx);
-            chat.scrollTop = chat.scrollHeight;
-            await new Promise(r => setTimeout(r, 200));
-          }
-          if (!cancelReply) addButtonsToMessage(aiMsg, rawText);
-        })();
-      } else {
-        bubble.textContent = rawText;
-        addButtonsToMessage(aiMsg, rawText);
+    while (true) {
+      if (cancelReply) {
+        reader.cancel();
+        cancelReply = false;
+        restoreSendButton();
+        return;
       }
 
-      // 正确调用（不是定义！）
-      saveChatRecords(input, rawText);
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('\n').filter(line => line.trim());
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const dataStr = line.replace('data: ', '').trim();
+          
+          if (dataStr === '[DONE]') {
+            streamRenderer.finalize(accumulatedText);
+            processStreamingCodeBlocks(aiBubble);
+            addButtonsToMessage(aiMsg, accumulatedText);
+            saveChatRecords(input, accumulatedText);
+            setTimeout(() => chat.scrollTop = chat.scrollHeight, 50);
+            restoreSendButton();
+            return;
+          }
+
+          try {
+            const data = JSON.parse(dataStr);
+            const token = data.response || data.content || data.token || data.delta || data.text || "";
+            
+            if (token) {
+              accumulatedText += token;
+              
+              if (!isRenderingMarkdown && shouldUseMarkdown(accumulatedText)) {
+                isRenderingMarkdown = true;
+              }
+              
+              if (isRenderingMarkdown) {
+                const updated = streamRenderer.update(accumulatedText);
+                if (updated && accumulatedText.length % 30 === 0) {
+                  chat.scrollTop = chat.scrollHeight;
+                }
+              } else {
+                aiBubble.textContent = accumulatedText;
+                if (accumulatedText.length % 30 === 0) {
+                  chat.scrollTop = chat.scrollHeight;
+                }
+              }
+            }
+          } catch (e) {
+            continue;
+          }
+        }
+      }
     }
+
+    streamRenderer.finalize(accumulatedText);
+    processStreamingCodeBlocks(aiBubble);
+    addButtonsToMessage(aiMsg, accumulatedText);
+    saveChatRecords(input, accumulatedText);
+    setTimeout(() => chat.scrollTop = chat.scrollHeight, 50);
+
   } catch (error) {
     if (loadingMsg && loadingMsg.parentNode) chat.removeChild(loadingMsg);
     const errorMsg = createMessage("ai", "Sorry, server busy. Please try again.");
@@ -496,11 +660,8 @@ async function sendMessage() {
   cancelReply = false;
   restoreSendButton();
 }
-// —————————————————————————— sendMessage() 结束 ——————————————————————————
 
-
-
-// —————————————————————————— 必须放在 sendMessage() 外面 ——————————————————————————
+// 保存聊天记录
 function saveChatRecords(input, rawText) {
   const currentUserId = localStorage.getItem("currentUserId");
   const isNewChat = !currentChatTitle;
@@ -537,15 +698,7 @@ function saveChatRecords(input, rawText) {
   }
 }
 
-function saveChatMessageByTitle(userId, title, role, text) {
-  const key = `chat_${userId}_${title}`;
-  const history = JSON.parse(localStorage.getItem(key) || "[]");
-  history.push({ role, text });
-  localStorage.setItem(key, JSON.stringify(history));
-}
-// —————————————————————————— 两个函数结束 ——————————————————————————
-
-
+// 恢复发送按钮
 function restoreSendButton() {
   const sendBtn = document.querySelector(".send-icon");
   sendBtn.innerHTML = `
@@ -558,6 +711,7 @@ function restoreSendButton() {
   sendBtn.onclick = sendMessage;
 }
 
+// 重置聊天
 function resetChat() {
   const chat = document.getElementById("chat");
   chat.innerHTML = "";
@@ -570,6 +724,7 @@ function resetChat() {
   resizeTextarea();
 }
 
+// 事件监听
 document.addEventListener("keydown", function (e) {
   const inputEl = document.getElementById("input");
   if (e.key === "Enter" && !e.shiftKey && document.activeElement === inputEl) {
@@ -578,6 +733,7 @@ document.addEventListener("keydown", function (e) {
   }
 });
 
+// 登录相关
 document.querySelector(".sign-in").onclick = () => {
   document.getElementById("loginModal").classList.remove("hidden");
 };
@@ -601,13 +757,9 @@ function handleLogin() {
   }
 
   emailInput.classList.remove("input-error");
-
-  // 终极推荐方案：用 btoa(email) 生成固定且唯一的 guest ID
   const fixedUserId = "guest_" + btoa(email).replace(/[^a-zA-Z0-9]/g, "").slice(0, 40);
-
   localStorage.setItem("currentUserId", fixedUserId);
   localStorage.setItem("currentUserEmail", email);
-
   closeLoginModal();
   showSettingsIcon(email);
   loadChatTitles(fixedUserId);
@@ -636,6 +788,7 @@ function logout() {
   location.reload();
 }
 
+// 文本区域调整
 const textarea = document.getElementById("input");
 const inputContainer = document.getElementById("inputContainer");
 let isResizing = false;
@@ -643,27 +796,24 @@ let isResizing = false;
 function resizeTextarea() {
   if (isResizing) return;
   isResizing = true;
-
   textarea.style.height = 'auto';
   const newHeight = Math.min(textarea.scrollHeight, 200);
   textarea.style.height = newHeight + 'px';
   inputContainer.style.height = newHeight + 'px';
-
   const sendBtn = document.querySelector('.send-icon');
   if (sendBtn) {
     sendBtn.style.top = '50%';
     sendBtn.style.transform = 'translateY(-50%)';
   }
-
   isResizing = false;
 }
 
 textarea.addEventListener('input', resizeTextarea);
 
+// 页面加载
 document.addEventListener("DOMContentLoaded", () => {
   resizeTextarea();
 
-  // ====================== 你的侧边栏逻辑（完全保留）======================
   const sidebarBtn = document.querySelector(".icon-button[title='Sidebar']");
   const toggleBtn = document.getElementById("toggleSidebar");
   const sidebar = document.getElementById("sidebar");
@@ -695,35 +845,24 @@ document.addEventListener("DOMContentLoaded", () => {
   setupOutsideClick();
 
   window.addEventListener("resize", () => {
-    if (!isMobileOrTablet()) {
-      sidebar.classList.remove("visible");
-    }
+    if (!isMobileOrTablet()) sidebar.classList.remove("visible");
   });
-  // ====================== 侧边栏逻辑结束 ======================
 
-  // ====================== 终极修复：自动恢复登录状态 ======================
+  // 恢复登录状态
   const savedUserId = localStorage.getItem("currentUserId");
   const savedEmail = localStorage.getItem("currentUserEmail");
 
   if (savedUserId) {
-    // 只要 localStorage 里有 currentUserId，就认为已经登录（游客或真实用户都行）
     closeLoginModal();
-
     const displayEmail = savedEmail || savedUserId.startsWith("guest_")
       ? savedUserId.replace("guest_", "").slice(0, 12) + "...@guest"
       : savedUserId;
-
     showSettingsIcon(displayEmail);
     loadChatTitles(savedUserId);
-
-    // 恢复上次打开的聊天（强烈推荐）
     restoreLastOpenedChat(savedUserId);
-
-    // 重要！直接 return，阻止后面的 fetchUser 去覆盖我们本地状态
     return;
   }
 
-  // ====================== 只有完全没登录过，才去后端检查真实登录 ======================
   fetch("/get-user", { credentials: "include" })
     .then(res => res.ok ? res.json() : Promise.reject())
     .then(data => {
@@ -732,21 +871,19 @@ document.addEventListener("DOMContentLoaded", () => {
         localStorage.setItem("currentUserEmail", data.email);
         showSettingsIcon(data.email);
         loadChatTitles(data.id);
-        restoreLastOpenedChat(data.id);
+                restoreLastOpenedChat(data.id);
       } else {
         throw new Error("No user");
       }
     })
     .catch(() => {
-      // 后端也没登录 → 游客默认界面
       updateGuestSidebar();
     });
 
-  // ====================== 恢复上次打开的聊天（关键函数）======================
+  // 恢复上次打开的聊天
   function restoreLastOpenedChat(userId) {
     const lastTitle = localStorage.getItem(`lastOpenedChat_${userId}`);
     if (lastTitle) {
-      // 延迟一点点等 DOM 渲染完
       setTimeout(() => {
         loadChatByTitle(userId, lastTitle);
       }, 100);
@@ -754,43 +891,31 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-
-// 删除确认弹窗专用函数（只加这 3 个函数）
+// 删除确认弹窗
 function openDeleteConfirm(li) {
   liToDelete = li;
-
-  // 可选：让弹窗显示具体标题（推荐）
   const displayTitle = li.querySelector("span").textContent.trim();
   const h2 = document.querySelector("#deleteConfirmModal h2");
   if (h2) h2.textContent = `Delete "${displayTitle}"?`;
-
-  // 显示弹窗
   document.getElementById("deleteConfirmModal").classList.remove("hidden");
   document.getElementById("deleteConfirmModal").style.display = "flex";
 }
 
-// 关闭弹窗
 function closeDeleteModal() {
   document.getElementById("deleteConfirmModal").classList.add("hidden");
   document.getElementById("deleteConfirmModal").style.display = "none";
   liToDelete = null;
 }
 
-// 确认删除（最核心、最安全的版本）
 function confirmDelete() {
   if (!liToDelete) return;
-
-  // 100% 准确拿到真实标题，再也不可能删错
   const realTitle = liToDelete.dataset.fullTitle;
-
   const userId = localStorage.getItem("currentUserId");
 
   if (userId) {
-    // 登录用户
     deleteChat(userId, realTitle);
-    loadChatTitles(userId);           // 刷新侧边栏
+    loadChatTitles(userId);
   } else {
-    // 游客
     guestChatTitles = guestChatTitles.filter(t => t !== realTitle);
     delete guestChatRecords[realTitle];
     localStorage.setItem("guestChatTitles", JSON.stringify(guestChatTitles));
@@ -798,7 +923,6 @@ function confirmDelete() {
     updateGuestSidebar();
   }
 
-  // 如果删的是当前正在看的聊天 → 回到欢迎页
   if (currentChatTitle === realTitle) {
     resetChat();
   }
