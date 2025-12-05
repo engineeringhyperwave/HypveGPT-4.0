@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for, g
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for, g, Response
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -6,11 +6,13 @@ from authlib.integrations.flask_client import OAuth
 import requests
 import os
 import secrets
+import json
 from dotenv import load_dotenv
 from functools import wraps
 from itsdangerous import URLSafeTimedSerializer
 import logging
 import uuid
+import re
 
 load_dotenv()
 
@@ -109,6 +111,118 @@ Guidelines:
 Always maintain a friendly and professional tone.
 """.strip()
 
+# ================== 优化的流式生成函数 ==================
+def generate_stream_fast(payload, request_id, user_info):
+    """
+    优化的流式生成函数 - 使用真正的流式API，无延迟
+    """
+    try:
+        logger.info(f"[{request_id}] 开始流式请求 | 用户: {user_info}")
+        
+        # 🟢 使用真正的流式API
+        response = requests.post(
+            API_URL,
+            headers={
+                "Authorization": f"Bearer {HF_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                **payload,
+                "stream": True  # 关键：启用流式
+            },
+            stream=True,  # 关键：保持连接打开
+            timeout=30
+        )
+        response.raise_for_status()
+        
+        logger.info(f"[{request_id}] 流式连接建立成功")
+        
+        # 🟢 直接转发流式响应，无延迟
+        for line in response.iter_lines():
+            if line:
+                line = line.decode('utf-8')
+                
+                if line.startswith('data: '):
+                    data_str = line[6:]
+                    
+                    if data_str == '[DONE]':
+                        logger.info(f"[{request_id}] 流式传输完成")
+                        yield "data: [DONE]\n\n"
+                        break
+                    
+                    try:
+                        data = json.loads(data_str)
+                        
+                        # 提取token内容
+                        token = ""
+                        if 'choices' in data and len(data['choices']) > 0:
+                            choice = data['choices'][0]
+                            if 'delta' in choice and 'content' in choice['delta']:
+                                token = choice['delta']['content']
+                            elif 'text' in choice:
+                                token = choice['text']
+                        
+                        if token:
+                            yield f"data: {json.dumps({'response': token})}\n\n"
+                            
+                    except json.JSONDecodeError:
+                        # 忽略非JSON行
+                        continue
+        
+    except requests.exceptions.Timeout:
+        logger.error(f"[{request_id}] 流式请求超时")
+        yield f"data: {json.dumps({'response': '请求超时，请稍后重试'})}\n\n"
+        yield "data: [DONE]\n\n"
+        
+    except requests.exceptions.RequestException as e:
+        error_msg = "服务暂时不可用"
+        if hasattr(e, 'response') and e.response:
+            if e.response.status_code == 429:
+                error_msg = "请求太频繁，请稍后再试"
+            elif e.response.status_code == 401:
+                error_msg = "认证失败"
+                logger.error(f"[{request_id}] API密钥失效")
+        
+        logger.error(f"[{request_id}] 流式请求异常: {str(e)[:100]}")
+        yield f"data: {json.dumps({'response': error_msg})}\n\n"
+        yield "data: [DONE]\n\n"
+        
+    except Exception as e:
+        logger.error(f"[{request_id}] 流式生成异常: {e}")
+        yield f"data: {json.dumps({'response': '生成过程中出现错误'})}\n\n"
+        yield "data: [DONE]\n\n"
+
+def generate_stream_simple(payload, request_id, user_info):
+    """
+    备用方案：快速非流式回复（最快）
+    """
+    try:
+        logger.info(f"[{request_id}] 开始快速请求 | 用户: {user_info}")
+        
+        # 获取完整回复
+        resp = requests.post(
+            API_URL,
+            headers={"Authorization": f"Bearer {HF_API_KEY}"},
+            json=payload,
+            timeout=30
+        )
+        resp.raise_for_status()
+        
+        data = resp.json()
+        full_text = data["choices"][0]["message"]["content"]
+        
+        logger.info(f"[{request_id}] 快速请求完成 | 长度: {len(full_text)}")
+        
+        # 🟢 立即发送完整回复（前端会作为流式处理）
+        yield f"data: {json.dumps({'response': full_text})}\n\n"
+        yield f"data: {json.dumps({'full_text': full_text})}\n\n"
+        yield "data: [DONE]\n\n"
+        
+    except Exception as e:
+        logger.error(f"[{request_id}] 快速请求异常: {e}")
+        yield f"data: {json.dumps({'response': '请求失败，请重试'})}\n\n"
+        yield "data: [DONE]\n\n"
+
 # ================== 路由 ==================
 @app.route("/")
 def index():
@@ -116,12 +230,14 @@ def index():
 
 @app.route("/generate", methods=["POST"])
 @limiter.limit("30/minute", key_func=lambda: get_current_user().get("id") if get_current_user() else get_remote_address())
-@limiter.limit("8/minute")  # 游客限流
+@limiter.limit("8/minute")
 def generate():
     if not HF_API_KEY:
         return jsonify({"response": "Server configuration error."}), 500
 
     user_input = request.json.get("prompt", "").strip()
+    stream = request.json.get("stream", False)
+    
     if not user_input:
         return jsonify({"response": "请输入内容"}), 400
     if len(user_input) > 3000:
@@ -133,38 +249,78 @@ def generate():
     ]
 
     payload = {
-        "model": "deepseek-ai/DeepSeek-V3.2-Exp",   # 必须确保存在
+        "model": "deepseek-ai/DeepSeek-V3.2-Exp",
         "messages": messages,
         "max_tokens": 2048,
         "temperature": 0.7
     }
 
     try:
-        resp = requests.post(
-            API_URL,
-            headers={"Authorization": f"Bearer {HF_API_KEY}"},
-            json=payload,
-            timeout=60
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        reply = data["choices"][0]["message"]["content"]
-        log_info(f"Generate success | user: {get_current_user()['email'] if get_current_user() else 'guest'}")
-        return jsonify({"response": reply})
+        # 用户信息
+        user_info = get_current_user()
+        user_email = user_info.get('email', 'guest') if user_info else 'guest'
+        request_id = str(uuid.uuid4())[:8]
+        
+        log_info(f"生成请求开始 | prompt长度: {len(user_input)} | 用户: {user_email}")
+        
+        if stream:
+            # 🟢 使用优化的流式生成函数
+            return Response(
+                generate_stream_fast(payload, request_id, user_email),  # 真正的流式API
+                # generate_stream_simple(payload, request_id, user_email),  # 备用：快速非流式
+                mimetype='text/event-stream',
+                headers={
+                    'Cache-Control': 'no-cache',
+                    'Connection': 'keep-alive',
+                    'X-Accel-Buffering': 'no',
+                    'X-Request-ID': request_id
+                }
+            )
+        else:
+            # 非流式模式
+            resp = requests.post(
+                API_URL,
+                headers={"Authorization": f"Bearer {HF_API_KEY}"},
+                json=payload,
+                timeout=30
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            reply = data["choices"][0]["message"]["content"]
+            
+            log_info(f"非流式生成成功 | 用户: {user_email} | 长度: {len(reply)}")
+            return jsonify({"response": reply})
 
     except requests.exceptions.RequestException as e:
-        if hasattr(e.response, "status_code"):
-            status = e.response.status_code
-            if status == 429:
-                return jsonify({"response": "请求太频繁，请稍后再试"}), 429
-            elif status == 401:
+        error_msg = "模型暂时不可用，请稍后重试"
+        if hasattr(e, "response") and e.response:
+            if e.response.status_code == 429:
+                error_msg = "请求太频繁，请稍后再试"
+            elif e.response.status_code == 401:
+                error_msg = "服务认证失败"
                 logger.error("HF API Key 失效")
-                return jsonify({"response": "服务认证失败"}), 500
-        log_info(f"Generate failed: {e}")
-        return jsonify({"response": "模型暂时不可用，请稍后重试"}), 503
+        
+        log_info(f"API请求失败: {e}")
+        
+        if stream:
+            def error_stream():
+                yield f"data: {json.dumps({'response': error_msg})}\n\n"
+                yield "data: [DONE]\n\n"
+            return Response(error_stream(), mimetype='text/event-stream')
+        else:
+            return jsonify({"response": error_msg}), 503
+            
     except Exception as e:
-        logger.error(f"Unexpected error: {e}", exc_info=True)
-        return jsonify({"response": "服务开小差了，请稍后重试"}), 500
+        logger.error(f"意外错误: {e}", exc_info=True)
+        error_msg = "服务开小差了，请稍后重试"
+        
+        if stream:
+            def unexpected_error_stream():
+                yield f"data: {json.dumps({'response': error_msg})}\n\n"
+                yield "data: [DONE]\n\n"
+            return Response(unexpected_error_stream(), mimetype='text/event-stream')
+        else:
+            return jsonify({"response": error_msg}), 500
 
 # ================== OAuth ==================
 @app.route("/auth/github")
@@ -207,7 +363,7 @@ def auth_google_callback():
 @login_required
 def get_user():
     user = get_current_user()
-    return jsonify({"email": user['email'], "name": user.get('name')})
+    return jsonify({"email": user['email'], "name": user.get('name'), "id": user['id']})
 
 @app.route("/logout")
 def logout():
@@ -220,4 +376,14 @@ def health():
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=is_dev)
+    # 使用gevent优化流式性能
+    try:
+        from gevent import monkey
+        monkey.patch_all()
+        from gevent.pywsgi import WSGIServer
+        print(f"🚀 服务器启动在 http://0.0.0.0:{port} (gevent模式 - 优化流式性能)")
+        http_server = WSGIServer(('0.0.0.0', port), app)
+        http_server.serve_forever()
+    except ImportError:
+        print(f"🚀 服务器启动在 http://0.0.0.0:{port} (Flask开发模式)")
+        app.run(host="0.0.0.0", port=port, debug=is_dev, threaded=True)
