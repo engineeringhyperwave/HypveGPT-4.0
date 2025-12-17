@@ -2,6 +2,7 @@
   --max-chat-width: 768px;
 }
 
+/* ====== 基础布局 ====== */
 html, body {
   margin: 0;
   padding: 0;
@@ -18,7 +19,7 @@ body {
   font-family: "Segoe UI", "Apple Color Emoji", "Noto Color Emoji", "EmojiOne", sans-serif;
 }
 
-
+/* ====== 头部样式 ====== */
 .header {
   width: 100%;
   display: flex;
@@ -69,6 +70,18 @@ body {
   cursor: pointer;
 }
 
+.settings-button {
+  margin-left: auto;
+}
+
+.settings-icon {
+  top: 8px;
+  width: 26px;
+  height: 26px;
+  filter: brightness(0) invert(1);
+}
+
+/* ====== 主内容区 ====== */
 .wrapper {
   flex: 1;
   display: flex;
@@ -87,6 +100,7 @@ h1 {
   text-align: center;
 }
 
+/* ====== 聊天区域 ====== */
 #chat {
   display: none;
   flex-direction: column;
@@ -101,12 +115,21 @@ h1 {
   scrollbar-width: none;
   -ms-overflow-style: none;
   scroll-behavior: smooth;
+  transition: opacity 180ms ease-out, transform 180ms ease-out;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+#chat.switching {
+  opacity: 0.04;
+  transform: translateY(6px);
 }
 
 #chat::-webkit-scrollbar {
   display: none;
 }
 
+/* ====== 消息气泡 ====== */
 .message {
   display: flex;
   width: 100%;
@@ -125,40 +148,43 @@ h1 {
 .bubble {
   background-color: #222;
   color: #fff;
-  padding: 7.5px 16px;           /* 原 6px 14px → 更大更舒服 */
-  border-radius: 18px;          /* 原 10px → 更圆润 */
+  padding: 7.5px 16px;
+  border-radius: 18px;
   width: fit-content;
-  max-width: 73%;               /* 原 73% → 更宽（用户气泡） */
+  max-width: 73%;
   white-space: pre-wrap;
   word-break: break-word;
-  font-size: 16px;              /* 原 15px → 更大更清晰 */
-  line-height: 1.5;             /* 原 1.4 → 行距更宽松 */
+  font-size: 16px;
+  line-height: 1.5;
   box-sizing: border-box;
   display: inline-block;
   vertical-align: top;
 }
 
-/* ✅ Markdown 标题和段落单独设置字体大小和行距 */
 .ai .bubble {
   background-color: lab(100% 0.01 -0.01 / 0);
   max-width: 100% !important;
   margin: 0.8em 0;
   line-height: 1.6;
-  position: relative; /* 新增：确保流式样式正确定位 */
 }
 
-.ai .bubble .markdown-body {
-  display: block;             /* Markdown 内部元素是 block 就行 */
-  margin: 0;
-  padding: 0;
+.bubble-no-scroll {
+  overflow: hidden;
 }
 
+.ai-message {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* ====== 输入区域 ====== */
 .input-container {
   position: relative;
   width: 100%;
   max-width: var(--max-chat-width);
-  min-height: 80px;  /* 关键：默认高度更大 */
-  display: flex;           /* 新增 */
+  min-height: 80px;
+  display: flex;
   align-items: center;
   margin: 0 auto;
 }
@@ -191,13 +217,16 @@ textarea::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
+
 textarea::-webkit-scrollbar-track {
-  background: #111;              /* 深色轨道 */
+  background: #111;
 }
+
 textarea::-webkit-scrollbar-thumb {
-  background: #333;              /* 深灰滑块 */
+  background: #333;
   border-radius: 3px;
 }
+
 textarea::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
@@ -221,8 +250,8 @@ textarea::-webkit-scrollbar-thumb:hover {
 
 .send-icon.pause-mode {
   background-color: #222;
-  border: 1px solid #000000; /* 可保留边框或改色 */
-  border-radius: 50%;        /* 圆形 */
+  border: 1px solid #000000;
+  border-radius: 50%;
   width: 40px;
   height: 40px;
   display: flex;
@@ -230,20 +259,116 @@ textarea::-webkit-scrollbar-thumb:hover {
   justify-content: center;
 }
 
-
-.pause-symbol {
-  font-size: 20px;
+/* ====== 侧边栏 ====== */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 240px;
+  height: 100%;
+  background-color: #111;
   color: white;
-  font-weight: bold;
+  padding: 16px;
+  box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+  z-index: 1000;
 }
 
+.sidebar.visible {
+  transform: translateX(0);
+}
+
+.sidebar-header {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.sidebar-header .icon-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-header .icon-button:hover {
+  background-color: #222;
+}
+
+.sidebar-header img {
+  width: 22px;
+  height: 22px;
+  filter: brightness(0) invert(1);
+}
+
+.sidebar-title {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.chat-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.chat-list li {
+  padding: 10px;
+  border-bottom: 1px solid #333;
+  cursor: pointer;
+}
+
+.chat-list li:hover {
+  background-color: #222;
+}
+
+.chat-list li.selected {
+  background-color: #2b2b2b !important;
+}
+
+#chatList {
+  max-height: calc(100% - 100px);
+  overflow-y: auto;
+  scrollbar-width: thick;
+  scrollbar-color: #333 #111;
+}
+
+#chatList::-webkit-scrollbar {
+  width: 6px;
+}
+
+#chatList::-webkit-scrollbar-track {
+  background: #111;
+}
+
+#chatList::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+
+#chatList::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* ====== 模态框 ====== */
 .modal {
   position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: #000000;
-  display: flex; justify-content: center; align-items: center;
-  z-index: 999;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
 }
 
 .modal.hidden {
@@ -252,26 +377,24 @@ textarea::-webkit-scrollbar-thumb:hover {
 
 .modal-content {
   background: #1f1f1f;
-  padding: 40px 30px;
-  border-radius: 12px;
-  width: 320px; /* 可以改成 300px 更窄 */
-  min-height: 380px; /* 👈 增加高度 */
-  position: relative;
+  color: white;
+  padding: 24px;
+  border-radius: 26px;
+  width: 90%;
+  max-width: 400px;
   text-align: center;
-  box-shadow: 0 0 20px rgba(0,0,0,0.2);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 20px 30px 40px 30px;
+  position: relative;
 }
 
 .close-button {
   position: absolute;
-  top: 10px; right: 15px;
-  font-size: 20px;
+  top: 12px;
+  right: 12px;
   cursor: pointer;
+  font-size: 20px;
 }
 
+/* 登录相关 */
 .login-buttons {
   display: flex;
   flex-direction: column;
@@ -325,6 +448,10 @@ textarea::-webkit-scrollbar-thumb:hover {
   caret-color: white;
 }
 
+.input-error {
+  border-color: red !important;
+  box-shadow: 0 0 0 2px rgba(255, 0, 0, 0.2) !important;
+}
 
 .continue-button {
   margin-top: 15px;
@@ -338,121 +465,74 @@ textarea::-webkit-scrollbar-thumb:hover {
   cursor: pointer;
 }
 
-.input-error {
-  border-color: red !important;
-  box-shadow: 0 0 0 2px rgba(255, 0, 0, 0.2) !important;
+/* 删除确认 */
+.delete-warning {
+  margin: 16px 0;
+  font-size: 14px;
+  color: #ccc;
 }
 
-.settings-button {
-  margin-left: auto;
-}
-
-.settings-icon {
-  top: 8px;
-  width: 26px;
-  height: 26px;
-  filter: brightness(0) invert(1); /* ✅ 白色图标适配深色背景 */
-}
-
-#chatList {
-  max-height: calc(100% - 100px);
-  overflow-y: auto;
-  scrollbar-width: thick; /* Firefox */
-  scrollbar-color: #333 #111; /* Firefox */
-}
-
-#chatList::-webkit-scrollbar {
-  width: 6px;
-}
-
-#chatList::-webkit-scrollbar-track {
-  background: #111;
-}
-
-#chatList::-webkit-scrollbar-thumb {
-  background: #333;
-  border-radius: 3px;
-}
-
-#chatList::-webkit-scrollbar-thumb:hover {
-  background: #555;
-}
-
-.sidebar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 240px;
-  height: 100%;
-  background-color: #111;
-  color: white;
-  padding: 16px;
-  box-shadow: 2px 0 10px rgba(0,0,0,0.5);
-  transform: translateX(-100%);
-  transition: transform 0.3s ease;
-  z-index: 1000;
-}
-
-.sidebar.visible {
-  transform: translateX(0);
-}
-
-.sidebar-header {
+.delete-buttons-vertical {
   display: flex;
-  justify-content: flex-start; /* 图标靠左排列 */
-  align-items: center;
-  gap: 8px; /* 控制图标之间的距离 */
-  margin-bottom: 12px;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.sidebar-header .icon-button {
-  background: none;
+.delete-btn {
+  background-color: #ef4444;
+  color: white;
   border: none;
+  padding: 8px;
+  border-radius: 16px;
   cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.cancel-btn {
+  background-color: #2F2F2F;
+  color: white;
+  border: none;
+  padding: 8px;
+  border-radius: 16px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+/* ====== 消息按钮 ====== */
+.message-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.message-btn {
+  background-color: #e6f0ff00;
+  border: none;
   padding: 4px;
-  border-radius: 6px;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
 }
 
-.sidebar-header .icon-button:hover {
-  background-color: #222;
+.message-btn:hover {
+  background-color: hwb(0 47% 53% / 0.375);
 }
 
-.sidebar-header img {
-  width: 22px;
-  height: 22px;
-  filter: brightness(0) invert(1);
+.message-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke: #727272;
 }
 
-.sidebar-title {
-  font-size: 18px;
-  margin-bottom: 10px;
-}
-
-.chat-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.chat-list li {
-  padding: 10px;
-  border-bottom: 1px solid #333;
-  cursor: pointer;
-}
-
-.chat-list li:hover {
-  background-color: #222;
-}
-
-/* 高亮当前选中的聊天 bar */
-.chat-list li.selected {
-  background-color: #2b2b2b !important;
-}
-
-/* pre copy button */
+/* ====== 代码块复制按钮 ====== */
 .pre-with-copy {
   position: relative;
 }
@@ -470,83 +550,36 @@ textarea::-webkit-scrollbar-thumb:hover {
   color: #fff;
   display: flex;
   align-items: center;
-  gap: 4px; /* SVG 和文字之间的间距 */
+  gap: 4px;
+  transition: background-color 0.2s, transform 0.2s;
 }
 
-/* hover 效果 */
 .copy-code-btn:hover {
   background-color: rgba(0, 0, 0, 0.9);
-  transform: scale(1.1); /* 轻微放大 */
+  transform: scale(1.1);
 }
 
 .copy-code-btn .copy-icon {
   width: 14px;
   height: 14px;
-  stroke: currentColor; /* 继承白色 */
+  stroke: currentColor;
 }
 
-.ai-message {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-.bubble-no-scroll {
-  overflow: hidden;
-}
-
-
-/* 按钮容器 */
-.message-buttons {
-  display: flex;
-  gap: 10px;
-  margin-top: 8px;
-  justify-content: flex-start; /* 改为左对齐 */
-  width: 100%; /* 占满宽度 */
-}
-
-/* 通用按钮样式 */
-.message-btn {
-  background-color: #e6f0ff00; /* 浅蓝色背景，可自定义 */
-  border: none;
-  padding: 4px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  transition: background-color 0.2s;
-}
-
-.message-btn:hover {
-  background-color: hwb(0 47% 53% / 0.375); /* 稍深的蓝色悬停，可自定义 */
-}
-
-/* SVG 图标样式 */
-.message-btn svg {
-  width: 16px;
-  height: 16px;
-  stroke: #727272; /* 深蓝色图标，可自定义 */
-}
-
-/* === GitHub Markdown 渲染核心样式 === */
+/* ====== MARKDOWN 渲染核心 ====== */
 .markdown-body {
   font-size: 16px;
   line-height: 1.6;
   color: #e5e7eb;
 }
 
-/* === 优化 AI 气泡内 h1 标题（更大、更突出）=== */
 .markdown-body h1 {
-  font-size: 1.9em !important;     /* 比 h3 大 58%，视觉主标题 */
-  font-weight: 700 !important;     /* 更粗 */
-  line-height: 1.6 !important;     /* 正常行高，避免压扁 */
+  font-size: 1.9em !important;
+  font-weight: 700 !important;
+  line-height: 1.6 !important;
   margin: 0.6em 0 0.4em !important;
-  color: #f0f0f0 !important;       /* 更亮的白，深色背景高对比 */
+  color: #f0f0f0 !important;
   padding-bottom: 0.5em !important;
-  border-bottom: 1px solid #555 !important; /* 下划线增强层次 */
+  border-bottom: 1px solid #555 !important;
 }
 
 .markdown-body h2 {
@@ -559,17 +592,6 @@ textarea::-webkit-scrollbar-thumb:hover {
   border-bottom: 1px solid #444 !important;
 }
 
-/* === Grok 官方横线（2025 最新）=== */
-.markdown-body hr {
-  border: none;
-  height: 2px;
-  background: #e5e7eb50 !important;   /* 半透明白色（50% 透明） */
-  margin: 0.1em auto;
-  width: 100%;
-  opacity: 0.7 !important;
-  z-index: 10;
-}
-
 .markdown-body h3 {
   font-size: 1.3em !important;
   font-weight: 600 !important;
@@ -579,23 +601,21 @@ textarea::-webkit-scrollbar-thumb:hover {
 }
 
 .markdown-body p {
-  margin: 0em 0;
+  margin: 0.5em 0;
   line-height: 1.6;
 }
 
 .markdown-body strong {
-    font-weight: 600; /* 保持加粗 */
-    margin-bottom: 0; /* 不增加额外间距 */
+  font-weight: 600;
 }
 
-
 .markdown-body ul, .markdown-body ol {
-  margin: 0em 0;
+  margin: 0.5em 0;
   padding-left: 1.2em;
 }
 
 .markdown-body li {
-  margin: 0em 0;
+  margin: 0.2em 0;
 }
 
 .markdown-body code {
@@ -607,16 +627,15 @@ textarea::-webkit-scrollbar-thumb:hover {
 }
 
 .markdown-body pre {
-  background: #000000;
+  background: #000000 !important; /* ✅ 强制黑色背景 */
   padding: 12px;
   border-radius: 8px;
-  border: 1px solid #444;
+  border: 1px solid #444 !important;
   margin: 1em 0;
-  white-space: pre-wrap;   /* 保留换行但允许自动换行 */
-  word-break: break-word;  /* 长单词也能断开 */
-  overflow-x: hidden;      /* 禁止横向滚动 */
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
 }
-
 
 .markdown-body pre code {
   background: none;
@@ -625,16 +644,24 @@ textarea::-webkit-scrollbar-thumb:hover {
 }
 
 .markdown-body blockquote {
-  border-left: 3px solid #4b5563; /* 深灰色边框，更协调 */
+  border-left: 3px solid #4b5563;
   margin: 1em 0;
   padding: 0.5em 0 0.5em 1em;
-  color: #9ca3af; /* 浅灰色文字 */
-  font-style: normal; /* 取消斜体，更易读 */
-  background: rgba(75, 85, 99, 0.1); /* 轻微背景色 */
-  border-radius: 0 4px 4px 0; /* 右侧圆角 */
+  color: #9ca3af;
+  font-style: normal;
+  background: rgba(75, 85, 99, 0.1);
+  border-radius: 0 4px 4px 0;
 }
 
-/* ====== 强制恢复 Markdown 表格边框 ====== */
+.markdown-body hr {
+  border: none;
+  height: 2px;
+  background: #e5e7eb50 !important;
+  margin: 0.1em auto;
+  width: 100%;
+  opacity: 0.7 !important;
+}
+
 .markdown-body table {
   border-collapse: collapse !important;
   width: 100% !important;
@@ -654,136 +681,25 @@ textarea::-webkit-scrollbar-thumb:hover {
 }
 
 .markdown-body a {
-  color: inherit;           /* 继承文字颜色 #e5e7eb */
-  text-decoration: underline; /* 可以加下划线提示可点击 */
+  color: inherit;
+  text-decoration: underline;
   transition: color 0.2s;
 }
 
 .markdown-body a:hover {
-  color: #ffffff;           /* 悬停稍微亮一点，提示可点击 */
+  color: #ffffff;
 }
 
-/* Modal 样式，保持和 deleteConfirmModal 一致 */
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5); /* 背景半透明 */
-  justify-content: center; /* 垂直居中 */
-  align-items: center; /* 水平居中 */
-  display: flex; /* 必须使用 flexbox */
-  z-index: 9999; /* 确保位于最上层 */
-}
-
-.modal-content {
-  background: #1f1f1f; /* 背景深灰 */
-  color: white;
-  padding: 24px; /* 内边距 */
-  border-radius: 26px; /* 圆角 */
-  width: 90%; /* 最大宽度 */
-  max-width: 400px; /* 最大宽度限制 */
-  text-align: center; /* 文本居中 */
-  position: relative; /* 用于关闭按钮定位 */
-}
-
-/* 关闭按钮样式 */
-.close-button {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  cursor: pointer;
-  font-size: 20px; /* 设置字体大小 */
-}
-
-/* 删除警告信息样式 */
-.delete-warning {
-  margin: 16px 0;
-  font-size: 14px;
-  color: #ccc; /* 灰色文字 */
-}
-
-/* 按钮垂直排列 */
-.delete-buttons-vertical {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-/* 删除按钮样式 */
-.delete-btn {
-  background-color: #ef4444;
-  color: white;/* 红色字体 */
-  border: none;
-  padding: 8px;
-  border-radius: 16px; /* 圆角 */
-  cursor: pointer;
-  font-weight: bold;
-  font-size: 14px; /* 增加字体大小 */
-}
-
-/* 取消按钮样式 */
-.cancel-btn {
-  background-color: #2F2F2F;
-  color: white;
-  border: none;
-  padding: 8px;
-  border-radius: 16px;
-  cursor: pointer;
-  font-size: 14px; /* 增加字体大小 */
-}
-
-/* ================== 流式Markdown特殊样式 ================== */
-
-/* 流式Markdown容器 */
+/* ====== 流式Markdown样式 ====== */
 .markdown-body.streaming-markdown {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
   line-height: 1.6;
   color: #e5e7eb;
-  opacity: 0.92; /* 轻微透明，表示正在流式输出 */
+  opacity: 0.92;
   transition: opacity 0.3s ease;
   position: relative;
 }
 
-/* 流式Markdown中的代码块 */
-.markdown-body.streaming-markdown pre {
-  background: rgba(0, 0, 0, 0.3) !important; /* 半透明背景 */
-  border-left: 3px solid #10b981; /* 绿色左边框表示正在生成 */
-  position: relative;
-  transition: all 0.3s ease;
-}
-
-.markdown-body.streaming-markdown code {
-  background: rgba(51, 51, 51, 0.6) !important; /* 半透明代码背景 */
-  padding: 0.2em 0.4em;
-  border-radius: 4px;
-}
-
-/* 流式Markdown中的标题 */
-.markdown-body.streaming-markdown h1,
-.markdown-body.streaming-markdown h2,
-.markdown-body.streaming-markdown h3 {
-  opacity: 0.95;
-  transition: opacity 0.3s ease;
-}
-
-/* 流式完成后的最终样式 */
-.message.ai .bubble .markdown-body:not(.streaming-markdown) {
-  opacity: 1 !important;
-}
-
-/* 流式过程中代码块的闪烁动画（可选） */
-@keyframes code-streaming {
-  0%, 100% { border-left-color: #10b981; }
-  50% { border-left-color: #059669; }
-}
-
-.markdown-body.streaming-markdown pre {
-  animation: code-streaming 2s infinite;
-}
-
-/* 流式过程中的光标效果 */
 .markdown-body.streaming-markdown::after {
   content: '▋';
   display: inline-block;
@@ -799,12 +715,6 @@ textarea::-webkit-scrollbar-thumb:hover {
   51%, 100% { opacity: 0; }
 }
 
-/* 流式完成时移除光标 */
-.message.ai .bubble .markdown-body:not(.streaming-markdown)::after {
-  display: none;
-}
-
-/* 增强Markdown样式（用于最终渲染） */
 .markdown-body.enhanced-markdown {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
   line-height: 1.6;
@@ -812,46 +722,87 @@ textarea::-webkit-scrollbar-thumb:hover {
   opacity: 1;
 }
 
-/* 确保流式Markdown和增强Markdown的表格样式一致 */
-.markdown-body.streaming-markdown table,
-.markdown-body.enhanced-markdown table {
-  border-collapse: collapse !important;
-  width: 100% !important;
-  margin: 16px 0 !important;
+/* ====== 轻量BASH代码块（关键修复） ====== */
+.bash-lightweight {
+  font-family: 'Monaco', 'Menlo', monospace !important;
+  font-size: 14px !important;              /* ✅ 固定字体大小 */
+  line-height: 1.5 !important;             /* ✅ 固定行高 */
+  background: #000000 !important;          /* ✅ 固定背景色 */
+  color: #e0e0e0 !important;               /* ✅ 固定文字颜色 */
+  padding: 16px !important;                /* ✅ 固定内边距 */
+  margin: 1em 0 !important;                /* ✅ 固定外边距 */
+  border-radius: 8px !important;
+  border: 1px solid #333 !important;
+  overflow-x: auto !important;
+  white-space: pre !important;
+  transition: none !important;             /* ✅ 禁用所有过渡 */
+  min-height: 1.2em !important;            /* ✅ 最小高度防止跳动 */
+  contain: layout style !important;        /* ✅ 防止外部影响 */
+  will-change: transform !important;
+  position: relative !important;
 }
 
-.markdown-body.streaming-markdown th,
-.markdown-body.streaming-markdown td,
-.markdown-body.enhanced-markdown th,
-.markdown-body.enhanced-markdown td {
-  border: 1px solid #555 !important;
-  padding: 8px 12px !important;
-  text-align: left !important;
+.bash-lightweight.streaming {
+  border-left: 3px solid #10b981 !important;
 }
 
-.markdown-body.streaming-markdown th,
-.markdown-body.enhanced-markdown th {
-  background-color: #2a2a2a !important;
-  color: #fff !important;
+.bash-streaming {
+  font-size: 15px;
+  line-height: 1.6;
 }
 
-/* 夜间模式适配 */
-@media (prefers-color-scheme: dark) {
-  .markdown-body.streaming-markdown {
-    color: #e5e7eb;
-  }
-  
-  .markdown-body.streaming-markdown pre {
-    background: rgba(0, 0, 0, 0.4) !important;
-    border-left-color: #34d399;
-  }
-  
-  .markdown-body.streaming-markdown code {
-    background: rgba(75, 85, 99, 0.4) !important;
-  }
+/* ✅ 确保bash代码内的code元素也固定 */
+.bash-lightweight code {
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  color: inherit !important;
+  display: block !important;
 }
 
-/* ✅ 小屏样式：仅在宽度 ≤600px 时生效 */
+/* ====== 代码高亮覆盖 ====== */
+.hljs,
+pre code.hljs,
+pre code[class*="language-"],
+.language-bash,
+.language-javascript,
+.language-python,
+.language-html,
+.language-css,
+.language-json,
+.language-sql,
+.language-yaml {
+  background-color: #000000 !important;
+  color: #e0e0e0 !important;
+}
+
+.markdown-body pre,
+.markdown-body.enhanced-markdown pre,
+.markdown-body.streaming-markdown pre,
+pre[class*="language-"],
+pre.hljs {
+  background-color: #000000 !important;
+  border: 1px solid #444 !important;
+  margin: 1em 0 !important;
+}
+
+pre code {
+  background-color: #000000 !important;
+}
+
+/* ====== 通用代码块尺寸固定 ====== */
+pre, code, .hljs, [class*="language-"] {
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+  font-family: 'Monaco', 'Menlo', monospace !important;
+  transition: none !important;
+  min-height: 1.2em !important;
+}
+
+/* ====== 响应式设计 ====== */
 @media (max-width: 600px) {
   .input-container {
     position: fixed;
@@ -881,12 +832,6 @@ textarea::-webkit-scrollbar-thumb:hover {
   }
 
   .sign-up {
-    padding: 6px 16px;
-    background: black;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
     display: none;
   }
 
@@ -905,6 +850,16 @@ textarea::-webkit-scrollbar-thumb:hover {
     display: flex;
     gap: 10px;
     z-index: 20;
+  }
+
+  .settings-button {
+    position: absolute !important;
+    top: 6px !important;
+    right: 10px !important;
+    z-index: 30 !important;
+    width: 44px !important;
+    height: 44px !important;
+    padding: 10px !important;
   }
 
   .modal-content {
@@ -929,28 +884,6 @@ textarea::-webkit-scrollbar-thumb:hover {
     font-size: 13px;
     padding: 8px 10px;
   }
-}
-
-#chat {
-  transition: opacity 180ms ease-out, transform 180ms ease-out;
-  opacity: 1;
-  transform: translateY(0);
-}
-
-#chat.switching {
-  opacity: 0.04;
-  transform: translateY(6px);
-}
-
-.settings-button {
-    position: absolute !important;
-    top: 6px !important;
-    right: 10px !important;
-    z-index: 30 !important;
-    width: 44px !important;
-    height: 44px !important;
-    padding: 10px !important;
-  }
 
   .markdown-body.streaming-markdown {
     font-size: 15px;
@@ -965,3 +898,15 @@ textarea::-webkit-scrollbar-thumb:hover {
   .markdown-body.streaming-markdown::after {
     font-size: 14px;
   }
+}
+
+/* ====== 动画定义 ====== */
+@keyframes code-streaming {
+  0%, 100% { border-left-color: #10b981; }
+  50% { border-left-color: #059669; }
+}
+
+@keyframes bash-streaming {
+  0%, 100% { border-left-color: #10b981; }
+  50% { border-left-color: #059669; }
+}

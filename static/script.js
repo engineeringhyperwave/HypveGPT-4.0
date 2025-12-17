@@ -83,65 +83,109 @@ function createMessage(role, text, isStreaming = false) {
   bubble.className = "bubble";
   let cleanText = sanitizeText(text);
 
-  const isShort = cleanText.length < 80;
-  const hasMarkdown = /[`*_#\[\]>\-]|#{1,6}\s|\|.*\|/m.test(cleanText);
-  const isCodeBlock = /```[\s\S]*?```/m.test(cleanText);
-  const hasTable = /\|.*\|.*\n\|[-:|]+\|/.test(cleanText);
-  const useMarkdown = role === "ai" && (!isShort || hasMarkdown || isCodeBlock);
+  // ✅ 使用新的智能Markdown检测函数
+  const markdownMode = role === "ai" ? shouldUseMarkdown(cleanText) : false;
+  const useMarkdown = markdownMode === true || markdownMode === 'lightweight';
 
   if (useMarkdown) {
     if (typeof marked === "undefined" || typeof DOMPurify === "undefined") {
       bubble.textContent = cleanText;
     } else {
       try {
-        cleanText = cleanText.replace(/```(\w*)\n?/g, '```$1\n');
-        marked.setOptions({
-          breaks: true,
-          gfm: true,
-          tables: true,
-          pedantic: false,
-          smartLists: true,
-          smartypants: true
-        });
+        // ✅ 处理轻量bash模式（立即固定尺寸）
+        if (markdownMode === 'lightweight') {
+          bubble.innerHTML = renderLightweightBash(cleanText);
+          
+          // ✅ 对于流式渲染，添加特殊标记
+          if (isStreaming) {
+            bubble.classList.add('streaming-bash');
+          } else {
+            // 非流式时立即添加复制按钮
+            setTimeout(() => {
+              bubble.querySelectorAll('pre.bash-lightweight').forEach(pre => {
+                if (!pre.querySelector('.copy-code-btn') && pre.textContent.trim().length > 0) {
+                  const copyBtn = document.createElement('button');
+                  copyBtn.className = 'copy-code-btn';
+                  copyBtn.innerHTML = `
+                    <svg viewBox="0 0 24 24" class="copy-icon">
+                      <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                    </svg>
+                    <span class="copy-text">Copy</span>
+                  `;
+                  copyBtn.onclick = () => {
+                    const codeText = pre.innerText.replace(/Copy$/, '').trim();
+                    navigator.clipboard.writeText(codeText)
+                      .then(() => {
+                        const copyTextSpan = copyBtn.querySelector('.copy-text');
+                        if (copyTextSpan) copyTextSpan.textContent = 'Copied!';
+                        copyBtn.style.background = '#2b2b2b';
+                        setTimeout(() => {
+                          if (copyTextSpan) copyTextSpan.textContent = 'Copy';
+                          copyBtn.style.background = '';
+                        }, 1500);
+                      });
+                  };
+                  pre.classList.add('pre-with-copy');
+                  pre.appendChild(copyBtn);
+                }
+              });
+            }, 0);
+          }
+        } 
+        // ✅ 完整Markdown模式
+        else {
+          cleanText = cleanText.replace(/```(\w*)\n?/g, '```$1\n');
+          marked.setOptions({
+            breaks: true,
+            gfm: true,
+            tables: true,
+            pedantic: false,
+            smartLists: true,
+            smartypants: true
+          });
 
-        let html = marked.parse(cleanText);
-        html = html
-          .replace(/<p>\s*(---|\*\*\*|___)\s*<\/p>/g, '<hr class="markdown-hr">')
-          .replace(/<table>/g, '<table class="markdown-table">')
-          .replace(/<blockquote>/g, '<blockquote class="markdown-quote">')
-          .replace(/<h1>/g, '<h1 class="markdown-h1">')
-          .replace(/<h2>/g, '<h2 class="markdown-h2">')
-          .replace(/<h3>/g, '<h3 class="markdown-h3">');
+          let html = marked.parse(cleanText);
+          html = html
+            .replace(/<p>\s*(---|\*\*\*|___)\s*<\/p>/g, '<hr class="markdown-hr">')
+            .replace(/<table>/g, '<table class="markdown-table">')
+            .replace(/<blockquote>/g, '<blockquote class="markdown-quote">')
+            .replace(/<h1>/g, '<h1 class="markdown-h1">')
+            .replace(/<h2>/g, '<h2 class="markdown-h2">')
+            .replace(/<h3>/g, '<h3 class="markdown-h3">');
 
-        const sanitized = DOMPurify.sanitize(html, {
-          ALLOWED_TAGS: [
-            'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-            'p', 'br', 'hr',
-            'ul', 'ol', 'li',
-            'strong', 'em', 'b', 'i', 'u',
-            'code', 'pre', 'blockquote',
-            'table', 'thead', 'tbody', 'tr', 'th', 'td',
-            'a', 'img', 'div', 'span'
-          ],
-          ALLOWED_ATTR: ['class', 'href', 'src', 'alt', 'title', 'target']
-        });
+          const sanitized = DOMPurify.sanitize(html, {
+            ALLOWED_TAGS: [
+              'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+              'p', 'br', 'hr',
+              'ul', 'ol', 'li',
+              'strong', 'em', 'b', 'i', 'u',
+              'code', 'pre', 'blockquote',
+              'table', 'thead', 'tbody', 'tr', 'th', 'td',
+              'a', 'img', 'div', 'span'
+            ],
+            ALLOWED_ATTR: ['class', 'href', 'src', 'alt', 'title', 'target']
+          });
 
-        bubble.innerHTML = `<div class="markdown-body enhanced-markdown">${sanitized}</div>`;
+          bubble.innerHTML = `<div class="markdown-body enhanced-markdown">${sanitized}</div>`;
 
-        if (!isStreaming) {
-          processCodeBlocksImmediately(bubble);
-        } else {
-          bubble.dataset.needsProcessing = "true";
-          setTimeout(() => processCodeBlocksImmediately(bubble), 50);
+          if (!isStreaming) {
+            processCodeBlocksImmediately(bubble);
+          } else {
+            bubble.dataset.needsProcessing = "true";
+            setTimeout(() => processCodeBlocksImmediately(bubble), 50);
+          }
         }
       } catch (error) {
+        console.error('Markdown rendering error:', error);
         bubble.textContent = cleanText;
       }
     }
   } else {
+    // ✅ 纯文本模式
     bubble.textContent = cleanText;
   }
 
+  // ✅ 添加AI消息标识
   if (role === "ai") {
     msg.classList.add('ai-message');
     msg.dataset.messageId = Date.now();
@@ -206,13 +250,92 @@ function processStreamingCodeBlocks(bubble) {
 
 // 检查是否需要Markdown
 function shouldUseMarkdown(text) {
-  if (!text || text.length < 30) return false;
+  if (!text || text.trim().length === 0) return false;
+  
+  const textLength = text.length;
+  const lines = text.split('\n');
+  const lineCount = lines.length;
+  
+  // ✅ 1. 对于bash代码块特殊处理 - 立即启用但用轻量模式
+  if (text.includes('```bash')) {
+    return 'lightweight'; // 特殊标记，表示用轻量模式
+  }
+  
+  // ✅ 2. 检测代码块（不要求闭合，流式友好）
+  const backtickCount = (text.match(/```/g) || []).length;
+  const hasCodeBlockStart = backtickCount > 0;
+  const hasCompleteCodeBlock = backtickCount >= 2 && text.includes('```\n');
+  
+  // ✅ 3. 如果是代码块但很短，延迟启用Markdown
+  if (hasCodeBlockStart) {
+    // 计算代码块内的内容长度
+    const codeContentMatch = text.match(/```(\w+)?\n([\s\S]*?)(?:```|$)/);
+    if (codeContentMatch) {
+      const codeContent = codeContentMatch[2] || '';
+      // 代码内容较少时，保持纯文本（防止频繁切换）
+      if (codeContent.length < 80 && lineCount < 8) {
+        return false;
+      }
+    }
+    
+    // 有完整代码块时启用Markdown
+    if (hasCompleteCodeBlock) {
+      return true;
+    }
+    
+    // 代码块有足够内容时启用
+    if (textLength > 150) {
+      return true;
+    }
+    
+    return false;
+  }
+  
+  // ✅ 4. 普通文本的Markdown检测（提高阈值）
+  if (textLength < 50) return false; // 提高最小长度阈值
+  
   const hasMarkdownChars = /[`*_#\[\]>\-]|#{1,6}\s|\|.*\|/.test(text);
-  const hasCodeBlock = /```[\s\S]*?```/.test(text);
   const hasList = /^[\s]*[\-\*\+]\s|\d+\.\s/.test(text);
   const hasHeading = /^#{1,6}\s+.+/m.test(text);
   const hasBlockQuote = /^>\s+.+/m.test(text);
-  return hasMarkdownChars || hasCodeBlock || hasList || hasHeading || hasBlockQuote;
+  const hasTable = /\|.*\|/.test(text) && text.includes('|-');
+  
+  // ✅ 5. 综合考虑多个因素，避免过早切换
+  const markdownScore = (
+    (hasMarkdownChars ? 1 : 0) +
+    (hasList ? 2 : 0) +
+    (hasHeading ? 3 : 0) +
+    (hasBlockQuote ? 2 : 0) +
+    (hasTable ? 3 : 0)
+  );
+  
+  // 需要较高的Markdown分数或足够长的文本才启用
+  return (markdownScore >= 3 && textLength > 80) || textLength > 200;
+}
+
+// 添加到StreamingRenderer类中或作为独立函数
+function renderLightweightBash(text) {
+  // 简单的bash渲染，避免复杂Markdown解析
+  let html = text;
+  
+  // 保护HTML特殊字符
+  html = html.replace(/&/g, '&amp;')
+             .replace(/</g, '&lt;')
+             .replace(/>/g, '&gt;');
+  
+  // 简单代码块包装（无highlight.js）
+  html = html.replace(/```bash\n([\s\S]*?)```/g, 
+    (match, code) => {
+      return `<pre class="bash-lightweight"><code>${code}</code></pre>`;
+    });
+  
+  // 未闭合的代码块
+  if (html.includes('```bash') && !html.includes('```bash\n')) {
+    html = html.replace(/```bash([\s\S]*)$/, 
+      '<pre class="bash-lightweight streaming"><code>$1</code></pre>');
+  }
+  
+  return `<div class="bash-streaming">${html}</div>`;
 }
 
 // 流式渲染器类
@@ -221,44 +344,71 @@ class StreamingRenderer {
     this.bubble = bubble;
     this.lastText = '';
     this.lastUpdateTime = 0;
-    this.updateThreshold = 200;
+    this.updateThreshold = 250; // 平衡的更新频率
     this.updateCount = 0;
+    this.hasPreservedButtons = false;
+    this.isBashMode = false;
   }
   
   update(text) {
     const now = Date.now();
     const timeSinceLastUpdate = now - this.lastUpdateTime;
+    
+    // ✅ 检测内容类型
+    this.isBashMode = text.includes('```bash');
     const textChangedSignificantly = this.hasSignificantChange(text);
-    const shouldUpdate = textChangedSignificantly || timeSinceLastUpdate > this.updateThreshold;
+    
+    // ✅ 智能更新条件
+    let shouldUpdate = false;
+    
+    if (this.isBashMode) {
+      // bash代码：内容变化大或时间间隔长时更新
+      shouldUpdate = textChangedSignificantly || timeSinceLastUpdate > 350;
+    } else {
+      // 普通文本：正常更新
+      shouldUpdate = textChangedSignificantly || timeSinceLastUpdate > this.updateThreshold;
+    }
     
     if (shouldUpdate) {
-      this.renderStreamingMarkdown(this.bubble, text);
+      // ✅ 关键：在更新前检查并标记已有的按钮
+      const existingButtons = this.collectExistingButtons();
+      
+      // ✅ 渲染新内容
+      this.renderStreamingMarkdownOptimized(this.bubble, text, existingButtons);
+      
       this.lastText = text;
       this.lastUpdateTime = now;
       this.updateCount++;
       
-      if (this.updateCount % 3 === 0) {
-        setTimeout(() => this.processPartialCodeBlocks(this.bubble), 10);
+      // ✅ 延迟添加按钮（不频繁）
+      if (this.updateCount % 4 === 0 && this.isBashMode && !this.hasPreservedButtons) {
+        setTimeout(() => {
+          this.addCopyButtonsToStableCodeBlocks();
+        }, 200);
       }
+      
       return true;
     }
     return false;
   }
   
-  hasSignificantChange(newText) {
-    if (Math.abs(newText.length - this.lastText.length) > 30) return true;
-    const importantPatterns = [
-      /```[\s\S]{30,}```/,
-      /\n#{1,6}\s+[^\n]{15,}/,
-      /\n-{3,}/,
-      /\n```\w*\n[\s\S]{20,}/,
-      /\n```\s*$/,
-    ];
-    const newPart = newText.slice(this.lastText.length);
-    return importantPatterns.some(pattern => pattern.test(newPart));
+  // ✅ 收集现有按钮（但不保存整个HTML）
+  collectExistingButtons() {
+    const buttons = new Set();
+    this.bubble.querySelectorAll('.copy-code-btn').forEach(btn => {
+      const pre = btn.closest('pre');
+      if (pre) {
+        const content = pre.textContent.replace(/Copy$/, '').trim();
+        if (content.length > 30) {
+          buttons.add(content);
+        }
+      }
+    });
+    return buttons;
   }
   
-  renderStreamingMarkdown(bubble, text) {
+  // ✅ 优化的渲染方法
+  renderStreamingMarkdownOptimized(bubble, text, existingButtons) {
     if (typeof marked === "undefined" || typeof DOMPurify === "undefined") {
       bubble.textContent = text;
       return;
@@ -267,7 +417,16 @@ class StreamingRenderer {
     try {
       let processedText = this.preprocessStreamingMarkdown(text);
       marked.setOptions({ breaks: true, gfm: true, silent: true });
+      
+      // ✅ 关键：在解析前先检查是否有需要保护的按钮
       let html = marked.parse(processedText);
+      
+      // ✅ 处理未闭合的代码块
+      const backtickCount = (processedText.match(/```/g) || []).length;
+      if (backtickCount % 2 === 1 && !processedText.trim().endsWith('```')) {
+        html = html.replace(/(<pre>[\s\S]*?)(<\/pre>)?$/g, '$1</pre>');
+      }
+      
       html = `<div class="streaming-markdown">${html}</div>`;
       html = DOMPurify.sanitize(html, {
         ALLOWED_TAGS: ['p', 'br', 'code', 'pre', 'strong', 'em', 'b', 'i', 'u',
@@ -275,40 +434,46 @@ class StreamingRenderer {
                       'blockquote', 'hr', 'div', 'span'],
         ALLOWED_ATTR: ['class', 'data-highlighted']
       });
+      
       bubble.innerHTML = html;
+      
+      // ✅ 高亮代码（但不添加按钮）
+      if (typeof hljs !== "undefined") {
+        bubble.querySelectorAll('pre code:not([data-highlighted="true"])').forEach(block => {
+          try {
+            hljs.highlightElement(block);
+            block.dataset.highlighted = "true";
+          } catch (e) {}
+        });
+      }
+      
     } catch (error) {
       bubble.textContent = text;
     }
   }
   
-  preprocessStreamingMarkdown(text) {
-    let processed = text;
-    processed = processed.replace(/```(\s*\n)/g, '```text$1');
-    const backtickCount = (processed.match(/```/g) || []).length;
-    if (backtickCount % 2 === 1) processed += '\n```';
-    processed = processed.replace(/(\n)[ ]{2,}([-*+]|\d+\.)/g, '$1$2');
-    processed = processed.replace(/(\n)#{1,6}([^#\s])/g, '$1#$2');
-    return processed;
-  }
-  
-  processPartialCodeBlocks(bubble) {
-    if (typeof hljs === "undefined") return;
-    bubble.querySelectorAll('pre').forEach(pre => {
-      const code = pre.querySelector('code');
-      if (!code || code.dataset.highlighted === "true") return;
-      try {
-        hljs.highlightElement(code);
-        code.dataset.highlighted = "true";
-      } catch (e) {
-        if (!code.className.includes('hljs')) code.className = 'hljs';
-      }
-      if (!pre.querySelector('.copy-code-btn') && code.textContent.trim().length > 10) {
+  // ✅ 只在稳定的代码块上添加按钮
+  addCopyButtonsToStableCodeBlocks() {
+    this.bubble.querySelectorAll('pre:not(.pre-with-copy)').forEach(pre => {
+      const content = pre.textContent.trim();
+      const lines = content.split('\n').length;
+      
+      // ✅ 判断是否稳定：有多行或明显是完整代码
+      const isStable = content.length > 80 || 
+                      (lines > 3 && content.includes('\n')) ||
+                      (this.isBashMode && content.includes('```') && content.includes('\n'));
+      
+      if (isStable) {
         this.addCopyButtonToPre(pre);
+        this.hasPreservedButtons = true;
       }
     });
   }
   
+  // ✅ 原有的 addCopyButtonToPre（保持不变）
   addCopyButtonToPre(pre) {
+    if (pre.querySelector('.copy-code-btn')) return;
+    
     const copyBtn = document.createElement('button');
     copyBtn.className = 'copy-code-btn';
     copyBtn.innerHTML = `
@@ -335,6 +500,31 @@ class StreamingRenderer {
     pre.appendChild(copyBtn);
   }
   
+  // ✅ 原有的辅助方法（保持原样）
+  hasSignificantChange(newText) {
+    if (Math.abs(newText.length - this.lastText.length) > 30) return true;
+    const importantPatterns = [
+      /```[\s\S]{30,}```/,
+      /\n#{1,6}\s+[^\n]{15,}/,
+      /\n-{3,}/,
+      /\n```\w*\n[\s\S]{20,}/,
+      /\n```\s*$/,
+    ];
+    const newPart = newText.slice(this.lastText.length);
+    return importantPatterns.some(pattern => pattern.test(newPart));
+  }
+  
+  preprocessStreamingMarkdown(text) {
+    let processed = text;
+    processed = processed.replace(/```(\s*\n)/g, '```text$1');
+    const backtickCount = (processed.match(/```/g) || []).length;
+    if (backtickCount % 2 === 1) processed += '\n```';
+    processed = processed.replace(/(\n)[ ]{2,}([-*+]|\d+\.)/g, '$1$2');
+    processed = processed.replace(/(\n)#{1,6}([^#\s])/g, '$1#$2');
+    return processed;
+  }
+  
+  // ✅ 修改finalize方法
   finalize(text) {
     try {
       if (typeof marked !== "undefined" && typeof DOMPurify !== "undefined") {
@@ -348,10 +538,14 @@ class StreamingRenderer {
           ALLOWED_ATTR: ['class', 'data-highlighted']
         });
         this.bubble.innerHTML = `<div class="markdown-body enhanced-markdown">${html}</div>`;
+        
+        // ✅ 最终完成时添加所有按钮
+        setTimeout(() => {
+          processCodeBlocksImmediately(this.bubble);
+        }, 100);
       } else {
         this.bubble.textContent = text;
       }
-      processCodeBlocksImmediately(this.bubble);
     } catch (error) {
       this.bubble.textContent = text;
     }
@@ -359,6 +553,7 @@ class StreamingRenderer {
 }
 
 // 添加按钮到消息
+// 添加按钮到消息 - 修复regenerate逻辑
 function addButtonsToMessage(msg, text) {
   const buttonContainer = document.createElement("div");
   buttonContainer.className = "message-buttons";
@@ -371,10 +566,50 @@ function addButtonsToMessage(msg, text) {
     </svg>
   `;
   regenerateBtn.title = "Regenerate";
-  regenerateBtn.onclick = () => {
-    const lastUserMessage = getLastUserMessage();
-    if (lastUserMessage) sendMessageWithText(lastUserMessage);
+  
+  // ✅ 修复：查找对应的用户消息
+  regenerateBtn.onclick = (e) => {
+    e.stopPropagation();
+    
+    // 找到当前AI消息
+    const aiMessage = e.currentTarget.closest('.ai-message');
+    if (!aiMessage) return;
+    
+    // 获取聊天中所有消息
+    const chat = document.getElementById("chat");
+    if (!chat) return;
+    
+    const allMessages = Array.from(chat.querySelectorAll('.message'));
+    const currentIndex = allMessages.indexOf(aiMessage);
+    
+    if (currentIndex === -1) return;
+    
+    // ✅ 向前查找最近的用户消息
+    let userMessageText = null;
+    for (let i = currentIndex - 1; i >= 0; i--) {
+      const message = allMessages[i];
+      if (message.classList.contains('user')) {
+        const userBubble = message.querySelector('.bubble');
+        if (userBubble) {
+          userMessageText = userBubble.textContent.trim();
+          break;
+        }
+      }
+    }
+    
+    if (userMessageText) {
+      console.log('Regenerating for:', userMessageText);
+      sendMessageWithText(userMessageText);
+    } else {
+      console.warn('No corresponding user message found');
+      // 备用方案：使用最后一条用户消息
+      const lastUserMsg = getLastUserMessage();
+      if (lastUserMsg) {
+        sendMessageWithText(lastUserMsg);
+      }
+    }
   };
+  
   buttonContainer.appendChild(regenerateBtn);
 
   const copyBtn = document.createElement("button");
