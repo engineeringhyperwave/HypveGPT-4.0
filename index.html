@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HypveGPT</title>
+  <link rel="stylesheet" href="static/style.css">
+
+  <!-- 必须的库 -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+</head>
+<body>
+  <header class="header">
+    <div class="left-header">
+      <button class="icon-button" title="Sidebar">
+        <img src="static/sidebar.svg" alt="Sidebar Icon" />
+      </button>
+      <button class="icon-button" title="New Chat" onclick="resetChat()">
+        <img src="static/newchat.svg" alt="New Chat Icon" />
+      </button>
+    </div>
+    <div class="right-header">
+      <button class="sign-in">Sign in</button>
+      <button class="sign-up">Sign up</button>
+
+      <button class="icon-button settings-button" title="Settings" onclick="logout()" style="display: none;">
+        <img src="static/settings.svg" alt="Settings Icon" class="settings-icon" />
+      </button>
+    </div>
+  </header>
+
+  <!-- Sidebar 区块 -->
+  <div id="sidebar" class="sidebar hidden">
+    <div class="sidebar-header">
+      <button class="icon-button" id="toggleSidebar" title="Sidebar">
+        <img src="static/sidebar.svg" alt="Sidebar Icon" />
+      </button>
+      <button class="icon-button" title="New Chat" onclick="resetChat()">
+        <img src="static/newchat.svg" alt="New Chat Icon" />
+      </button>
+    </div>
+    <h2 class="sidebar-title">Chat History</h2>
+    <ul id="chatList" class="chat-list"></ul>
+  </div>
+
+  <main class="wrapper">
+    <h1 id="title">HypveGPT</h1>
+    <div id="chat"></div>
+    <div class="input-container" id="inputContainer">
+      <textarea id="input" placeholder="Ask HypveGPT..."></textarea>
+      <button class="send-icon" onclick="sendMessage()">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="white">
+          <path d="M2 21l21-9L2 3v7l15 2-15 2v7z" />
+        </svg>
+      </button>
+    </div>
+  </main>
+
+  <!-- 登录模态框 -->
+  <div id="loginModal" class="modal hidden">
+    <div class="modal-content">
+      <span class="close-button" onclick="closeLoginModal()">×</span>
+      <h2>Log in or Sign up</h2>
+
+      <div class="login-buttons">
+        <button class="login-provider google">Continue with Google</button>
+        <button class="login-provider github">Continue with GitHub</button>
+      </div>
+
+      <div class="divider">
+        <span>or</span>
+      </div>
+
+      <input type="email" id="loginEmail" placeholder="Enter your email" />
+      <button class="continue-button" onclick="handleLogin()">Continue</button>
+    </div>
+  </div>
+
+  <!-- 你的 JS（加版本号防缓存） -->
+  <script src="static/script.js?v=20251114"></script>
+</body>
+</html>
