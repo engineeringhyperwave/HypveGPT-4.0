@@ -3,7 +3,7 @@ let cancelReply = false;
 let currentChatTitle = null;
 let guestChatTitles = [];
 let guestChatRecords = {};
-const API_URL = "https://hypvegpt.onrender.com/generate";
+const API_URL = "/generate";
 
 // 保留所有 Emoji，只删真乱码（孤立代理对）
 function sanitizeText(text) {
