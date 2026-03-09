@@ -27,7 +27,11 @@ app.config.update(
 )
 
 # CORS Whitelist
-allowed_origins = [os.getenv("ALLOWED_ORIGIN"), "https://hypvegpt.onrender.com"]
+allowed_origins = [
+    "https://hypvegpt.onrender.com",  # Render 自己的前端
+    "https://engineeringhyperwave.github.io",  # GitHub Pages
+    "https://engineeringhyperwave.github.io/HypveGPT-4.0"  # 子路径
+]
 
 CORS(app, origins=allowed_origins, supports_credentials=True)
 
