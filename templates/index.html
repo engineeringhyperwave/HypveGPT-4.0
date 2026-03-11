@@ -5,18 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HypveGPT</title>
   <link rel="stylesheet" href="static/style.css">
-  <link rel="icon" href="static/Untitled-3.ico" type="image/x-icon">
-
 
   <!-- 必须的库 -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
-
-  <!-- 代码高亮主题（Code Block Theme） -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 </head>
-
 <body>
   <header class="header">
     <div class="left-header">
@@ -83,21 +76,6 @@
       <button class="continue-button" onclick="handleLogin()">Continue</button>
     </div>
   </div>
-
-  <!-- 删除聊天确认弹窗 -->
-<div id="deleteConfirmModal" class="modal" style="display: none;">
-  <div class="modal-content">
-    <span class="close-button" onclick="closeDeleteModal()">×</span>
-    <h2>Delete Chat?</h2>
-    <p class="delete-warning">
-      Once you delete a conversation, the messages are gone forever on every device.
-    </p>
-    <div class="delete-buttons-vertical">
-      <button class="delete-btn" onclick="confirmDelete()">Delete chat</button>
-      <button class="cancel-btn" onclick="closeDeleteModal()">Cancel</button>
-    </div>
-  </div>
-</div>
 
   <!-- 你的 JS（加版本号防缓存） -->
   <script src="static/script.js?v=20251114"></script>
