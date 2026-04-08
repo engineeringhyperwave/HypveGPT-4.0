@@ -76,3 +76,9 @@ config/secret.py
 # requirements.txt
 # render.yaml
 # README.md
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
